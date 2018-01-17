@@ -98,8 +98,30 @@ public class EarthUnitController extends DefaultUnitController {
 	}
 
 	public static void rocketStep(Unit unit) {
-		// TODO Auto-generated method stub
-		DefaultUnitController.rocketStep(unit);
+		if (unit.structureIsBuilt()==1) {
+			PlanetMap map = gc.startingMap(Planet.Mars);
+			int x = (int)Math.floor(Math.random()*map.getWidth());
+			int y = (int)Math.floor(Math.random()*map.getHeight());
+			
+			if(unit.structureGarrison().size() == 8) {
+				// best to find an available spot
+				while (map.isPassableTerrainAt(new MapLocation(Planet.Mars,x,y)) != 1) {
+					x = (int)Math.floor(Math.random()*map.getWidth());
+					y = (int)Math.floor(Math.random()*map.getHeight());
+					
+				}
+				gc.launchRocket(unit.id(), new MapLocation(Planet.Mars,x,y));
+			}
+			if (unit.health() < 50) {
+				while (map.isPassableTerrainAt(new MapLocation(Planet.Mars,x,y)) != 1) {
+					x = (int)Math.floor(Math.random()*map.getWidth());
+					y = (int)Math.floor(Math.random()*map.getHeight());
+					
+				}
+				gc.launchRocket(unit.id(), new MapLocation(Planet.Mars,x,y));
+			}
+	}
+	
 	}
 
 	public static void workerStep(Unit unit) {
