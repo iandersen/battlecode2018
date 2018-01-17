@@ -1,10 +1,13 @@
 
 // import the API.
 // See xxx for the javadocs.
+import java.util.Stack;
+
 import bc.*;
 
 public class Player {
 	public static GameController gc;
+	static Stack<UnitType> researchTrees = new Stack<UnitType>();
 
 	public static void main(String[] args) {
 
@@ -20,6 +23,12 @@ public class Player {
 
 		// Connect to the manager, starting the game
 		gc = new GameController();
+		researchTrees.push(UnitType.Rocket);
+		researchTrees.push(UnitType.Knight);
+		researchTrees.push(UnitType.Knight);
+		researchTrees.push(UnitType.Knight);
+		researchTrees.push(UnitType.Rocket);
+		
 		while (true) {
 			EarthUnitController.init();
 			UnitPathfinding.updateMap();
@@ -34,6 +43,11 @@ public class Player {
 
 	public static void earthTurn() {
 		VecUnit units = gc.myUnits();
+		
+		ResearchInfo info = gc.researchInfo();
+		if(info.queue().size() == 0){
+			gc.queueResearch(UnitType.Rocket);
+		}
 		for (int i = 0; i < units.size(); i++) {
 			Unit unit = units.get(i);
 			switch (unit.unitType()) {

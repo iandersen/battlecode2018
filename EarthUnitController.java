@@ -15,6 +15,8 @@ public class EarthUnitController extends DefaultUnitController {
 	private static final int WORKER_REPLICATE_COST = 15;
 	private static final int NUM_WORKERS = 8;
 	private static final int NUM_FACTORIES = 5;
+	private static final int NUM_ROCKETS = 1;
+	private static final int NUM_KNIGHTS = 25;
 	private static final int MINE_TURNS = 50;
 	private static final int KARBONITE_MIN = 300;
 	static Map<Integer, UnitProps> allUnitProps = new HashMap<Integer, UnitProps>();
@@ -41,6 +43,7 @@ public class EarthUnitController extends DefaultUnitController {
 		// TODO Auto-generated method stub
 		// if there is something in the garrison, and there is space to unload, unload
 		// else if there is available karbonite, choose a robot to create
+		int numKnights = Player.numberOfUnitType(UnitType.Knight);
 		if (unit.structureIsBuilt()==1) {
 			System.out.println("Garrison size: " + unit.structureGarrison().size());
 			System.out.println("Unload direction: " + UnitPathfinding.firstAvailableUnloadDirection(unit));
@@ -53,8 +56,9 @@ public class EarthUnitController extends DefaultUnitController {
 					gc.produceRobot(unit.id(), UnitType.Worker);
 				}
 				
-				else {
+				else if(numKnights < NUM_KNIGHTS){
 					int random = (int)Math.floor(Math.random()*2);
+					random = 1;
 					if (random == 1) {
 						System.out.println("Producing Knight");
 						gc.produceRobot(unit.id(), UnitType.Knight);
@@ -75,8 +79,12 @@ public class EarthUnitController extends DefaultUnitController {
 	}
 
 	public static void knightStep(Unit unit) {
-		// TODO Auto-generated method stub
-		DefaultUnitController.knightStep(unit);
+		if(!unit.location().isOnMap())
+			return;
+		Direction direction = UnitPathfinding.firstAvailableDirection(unit);
+		System.out.println("knight wants to move in direction: " + direction);
+		if(unit.movementHeat() < 10 && !direction.equals(Direction.Center))
+			gc.moveRobot(unit.id(), direction);
 	}
 
 	public static void mageStep(Unit unit) {
@@ -95,25 +103,26 @@ public class EarthUnitController extends DefaultUnitController {
 	}
 
 	public static void workerStep(Unit unit) {
-		System.out.println("Worker step for unit: " + unit.id());
 		int numWorkers = Player.numberOfUnitType(UnitType.Worker);
 		int numFactories = Player.numberOfUnitType(UnitType.Factory);
+		int numRockets = Player.numberOfUnitType(UnitType.Rocket);
 		Unit structure = getUnfinishedStructure();
 		MapLocation loc = unit.location().mapLocation();
 		if (unit.abilityHeat() < 10 && gc.karbonite() >= WORKER_REPLICATE_COST && numWorkers < NUM_WORKERS
 				&& !UnitPathfinding.firstAvailableDirection(unit).equals(Direction.Center)) {
-			System.out.println("Replicating");
 			workerReplicate(unit);
 		} else if (structure != null
 				&& (loc.distanceSquaredTo(structure.location().mapLocation()) <= 2 || unit.movementHeat() < 10)) {
-			System.out.println("Building factory");
 			workerBuildFactory(unit, structure);
 		} else if ((gc.round() < MINE_TURNS || gc.karbonite() < KARBONITE_MIN) && totalKarbonite > 50) {
 			workerMine(unit);
 		} else if (structure == null && numFactories < NUM_FACTORIES
 				&& !UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Factory).equals(Direction.Center)) {
-			System.out.println("Blueprinting factory");
 			workerBlueprintFactory(unit);
+		} else if (gc.researchInfo().getLevel(UnitType.Rocket) > 0 && structure == null && numRockets < NUM_ROCKETS
+				&& !UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Rocket).equals(Direction.Center)) {
+			System.out.println("Blueprinting rocket");
+			workerBlueprintRocket(unit);
 		} else if (totalKarbonite > 0) {
 			workerMine(unit);
 		}
@@ -121,7 +130,6 @@ public class EarthUnitController extends DefaultUnitController {
 
 	private static void workerReplicate(Unit unit) {
 		Direction firstAvailableDirection = UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Factory);
-		System.out.println("Replicated direction: " + firstAvailableDirection);
 		if(!firstAvailableDirection.equals(Direction.Center))
 			gc.replicate(unit.id(), firstAvailableDirection);
 	}
@@ -142,9 +150,13 @@ public class EarthUnitController extends DefaultUnitController {
 		Direction direction = UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Factory);
 		gc.blueprint(unit.id(), UnitType.Factory, direction);
 	}
+	
+	private static void workerBlueprintRocket(Unit unit) {
+		Direction direction = UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Rocket);
+		gc.blueprint(unit.id(), UnitType.Rocket, direction);
+	}
 
 	private static void workerMine(Unit unit) {
-		System.out.println("Mining");
 		MapLocation deposit = bestKarboniteDeposit(unit);
 		for (Direction dir : Direction.values()) {
 			if (gc.canHarvest(unit.id(), dir)) {
@@ -155,7 +167,6 @@ public class EarthUnitController extends DefaultUnitController {
 			}
 		}
 		if (unit.movementHeat() < 10 && deposit.distanceSquaredTo(unit.location().mapLocation()) > 2) {
-			System.out.println("Moving toward location");
 			UnitPathfinding.moveUnitTowardLocation(unit, deposit);
 			return;
 		}

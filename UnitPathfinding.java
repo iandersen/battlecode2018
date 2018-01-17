@@ -186,15 +186,16 @@ public class UnitPathfinding {
 	}
 
 	public static Direction firstAvailableDirection(Unit unit) {
-		for (int i = 0; i < directions.length; i++) {
-			MapLocation newLoc = unit.location().mapLocation().add(directions[i]);
-			long height = gc.startingMap(gc.planet()).getHeight();
-			long width = gc.startingMap(gc.planet()).getWidth();
-			if (newLoc.getX() >= 0 && newLoc.getY() >= 0)
-				if (newLoc.getX() < width && newLoc.getY() < height)
-					if (gc.canSenseLocation(newLoc) && gc.isOccupiable(newLoc) < 1)
-						return directions[i];
-		}
+		if(unit.location().isOnMap())
+			for (int i = 0; i < directions.length; i++) {
+				MapLocation newLoc = unit.location().mapLocation().add(directions[i]);
+				long height = gc.startingMap(gc.planet()).getHeight();
+				long width = gc.startingMap(gc.planet()).getWidth();
+				if (newLoc.getX() >= 0 && newLoc.getY() >= 0)
+					if (newLoc.getX() < width && newLoc.getY() < height)
+						if (gc.canMove(unit.id(), directions[i]))
+							return directions[i];
+			}
 		return Direction.Center;
 	}
 
@@ -207,10 +208,11 @@ public class UnitPathfinding {
 	}
 	
 	public static Direction firstAvailableUnloadDirection(Unit unit) {
-		for (int i = 0; i < directions.length; i++) {
-			if (gc.canUnload(unit.id(), directions[i]))
-				return directions[i];
-		}
+		if(unit.location().isOnMap())
+			for (int i = 0; i < directions.length; i++) {
+				if (gc.canUnload(unit.id(), directions[i]))
+					return directions[i];
+			}
 		return Direction.Center;
 	}
 }
