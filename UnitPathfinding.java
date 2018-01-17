@@ -84,14 +84,13 @@ public class UnitPathfinding {
 			isOpen[currentNode.getX()][currentNode.getY()] = false;
 			addAdjacentNodes(currentNode, isOpen, isVisited);
 			MapLocation bestNode = getClosestSquare(isOpen, location, origin, isVisited);
+//			System.out.println("moving from " + origin + " to: " + bestNode + " to get to " + location);
 			isOpen[bestNode.getX()][bestNode.getY()] = false;
 			if(currentNode.getX() == origin.getX() && currentNode.getY() == origin.getY()){
 				destNode = bestNode;
 			}
 			currentNode = bestNode;
 			steps++;
-			if(steps % 100 == 0)
-				System.out.println(steps);
 		}
 		System.out.println("Steps: " + steps);
 		System.out.println("moving from " + origin + " to: " + destNode + " to get to " + location);
@@ -145,19 +144,19 @@ public class UnitPathfinding {
 
 	public static Direction moveUnitTowardLocation(Unit unit, MapLocation location) {
 		MapLocation unitMapLocation = unit.location().mapLocation();
-		Direction dir = unitMapLocation.directionTo(startPathToLocation(unit, location));
-		if(canMoveUnitInDirection(unit, dir))
-			moveUnitInDirection(unit, dir);
-		return dir;
-		// Direction idealDirection = unitMapLocation.directionTo(location);
-		// Direction returnDirection = unitMapLocation.directionTo(location);
-		// for (int i = 0; !canMoveUnitInDirection(unit, returnDirection) && i <
-		// tryToTurn.length; i++) {
-		// returnDirection = rotate(idealDirection, tryToTurn[i]);
-		// }
-		// if(canMoveUnitInDirection(unit, returnDirection))
-		// moveUnitInDirection(unit, returnDirection);
-		// return returnDirection;
+//		Direction dir = unitMapLocation.directionTo(startPathToLocation(unit, location));
+//		if(canMoveUnitInDirection(unit, dir))
+//			moveUnitInDirection(unit, dir);
+//		return dir;
+		 Direction idealDirection = unitMapLocation.directionTo(location);
+		 Direction returnDirection = unitMapLocation.directionTo(location);
+		 for (int i = 0; !canMoveUnitInDirection(unit, returnDirection) && i <
+		 tryToTurn.length; i++) {
+		 returnDirection = rotate(idealDirection, tryToTurn[i]);
+		 }
+		 if(canMoveUnitInDirection(unit, returnDirection))
+		 moveUnitInDirection(unit, returnDirection);
+		 return returnDirection;
 	}
 
 	private static void moveUnitInDirection(Unit unit, Direction direction) {
@@ -202,6 +201,14 @@ public class UnitPathfinding {
 	public static Direction firstAvailableBuildDirection(Unit unit, UnitType structureType) {
 		for (int i = 0; i < directions.length; i++) {
 			if (gc.canBlueprint(unit.id(), structureType, directions[i]))
+				return directions[i];
+		}
+		return Direction.Center;
+	}
+	
+	public static Direction firstAvailableUnloadDirection(Unit unit) {
+		for (int i = 0; i < directions.length; i++) {
+			if (gc.canUnload(unit.id(), directions[i]))
 				return directions[i];
 		}
 		return Direction.Center;

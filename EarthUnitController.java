@@ -42,10 +42,12 @@ public class EarthUnitController extends DefaultUnitController {
 		// if there is something in the garrison, and there is space to unload, unload
 		// else if there is available karbonite, choose a robot to create
 		if (unit.structureIsBuilt()==1) {
-			if (unit.structureGarrison().size()!=0 && !UnitPathfinding.firstAvailableDirection(unit).equals(Direction.Center)) {
-				gc.unload(unit.structureGarrison().get(0), UnitPathfinding.firstAvailableDirection(unit));
+			System.out.println("Garrison size: " + unit.structureGarrison().size());
+			System.out.println("Unload direction: " + UnitPathfinding.firstAvailableUnloadDirection(unit));
+			if (unit.structureGarrison().size()!=0 && !UnitPathfinding.firstAvailableUnloadDirection(unit).equals(Direction.Center)) {
+				gc.unload(unit.id(), UnitPathfinding.firstAvailableUnloadDirection(unit));
 			}
-			else if (gc.karbonite() > 25 && unit.movementHeat() < 10) {
+			else if (gc.karbonite() > 25 && unit.isFactoryProducing() == 0) {
 				// choose a robot to create
 				if (Player.numberOfUnitType(UnitType.Worker) < NUM_WORKERS) {
 					gc.produceRobot(unit.id(), UnitType.Worker);
@@ -54,9 +56,11 @@ public class EarthUnitController extends DefaultUnitController {
 				else {
 					int random = (int)Math.floor(Math.random()*2);
 					if (random == 1) {
+						System.out.println("Producing Knight");
 						gc.produceRobot(unit.id(), UnitType.Knight);
 					}
 					else {
+						System.out.println("Producing Ranger");
 						gc.produceRobot(unit.id(), UnitType.Ranger);
 					}
 					
@@ -91,20 +95,24 @@ public class EarthUnitController extends DefaultUnitController {
 	}
 
 	public static void workerStep(Unit unit) {
+		System.out.println("Worker step for unit: " + unit.id());
 		int numWorkers = Player.numberOfUnitType(UnitType.Worker);
 		int numFactories = Player.numberOfUnitType(UnitType.Factory);
 		Unit structure = getUnfinishedStructure();
 		MapLocation loc = unit.location().mapLocation();
 		if (unit.abilityHeat() < 10 && gc.karbonite() >= WORKER_REPLICATE_COST && numWorkers < NUM_WORKERS
 				&& !UnitPathfinding.firstAvailableDirection(unit).equals(Direction.Center)) {
+			System.out.println("Replicating");
 			workerReplicate(unit);
 		} else if (structure != null
 				&& (loc.distanceSquaredTo(structure.location().mapLocation()) <= 2 || unit.movementHeat() < 10)) {
+			System.out.println("Building factory");
 			workerBuildFactory(unit, structure);
 		} else if ((gc.round() < MINE_TURNS || gc.karbonite() < KARBONITE_MIN) && totalKarbonite > 50) {
 			workerMine(unit);
 		} else if (structure == null && numFactories < NUM_FACTORIES
 				&& !UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Factory).equals(Direction.Center)) {
+			System.out.println("Blueprinting factory");
 			workerBlueprintFactory(unit);
 		} else if (totalKarbonite > 0) {
 			workerMine(unit);
@@ -112,7 +120,8 @@ public class EarthUnitController extends DefaultUnitController {
 	}
 
 	private static void workerReplicate(Unit unit) {
-		Direction firstAvailableDirection = UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Worker);
+		Direction firstAvailableDirection = UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Factory);
+		System.out.println("Replicated direction: " + firstAvailableDirection);
 		if(!firstAvailableDirection.equals(Direction.Center))
 			gc.replicate(unit.id(), firstAvailableDirection);
 	}
