@@ -81,10 +81,24 @@ public class EarthUnitController extends DefaultUnitController {
 	public static void knightStep(Unit unit) {
 		if(!unit.location().isOnMap())
 			return;
-		Direction direction = UnitPathfinding.firstAvailableDirection(unit);
-		System.out.println("knight wants to move in direction: " + direction);
-		if(unit.movementHeat() < 10 && !direction.equals(Direction.Center))
-			gc.moveRobot(unit.id(), direction);
+		int numRockets = Player.numberOfUnitType(UnitType.Rocket);
+		if(numRockets > 0){
+			Unit rocket = getBestRocket(unit);
+			if(rocket != null){
+				if(gc.canLoad(rocket.id(), unit.id())){
+					System.out.println("Loading knight");
+					gc.load(rocket.id(), unit.id());
+				}else{
+					UnitPathfinding.moveUnitTowardLocation(unit, rocket.location().mapLocation());
+				}
+			}
+		}
+		if(Math.random() * 10 < 2){
+			Direction direction = UnitPathfinding.firstAvailableDirection(unit);
+			System.out.println("knight wants to move in direction: " + direction);
+			if(unit.movementHeat() < 10 && !direction.equals(Direction.Center))
+				gc.moveRobot(unit.id(), direction);
+		}
 	}
 
 	public static void mageStep(Unit unit) {
@@ -209,6 +223,23 @@ public class EarthUnitController extends DefaultUnitController {
 					maxScore = score;
 					ret.setX(x);
 					ret.setY(y);
+				}
+			}
+		}
+		return ret;
+	}
+	
+	public static Unit getBestRocket(Unit unit) {
+		long closestDistance = Long.MAX_VALUE;
+		MapLocation me = unit.location().mapLocation();
+		VecUnit units = gc.myUnits();
+		Unit ret = null;
+		for (int i = 0; i < units.size(); i++) {
+			Unit u = units.get(i);
+			if (unit.unitType().equals(UnitType.Rocket)){
+				if(me.distanceSquaredTo(u.location().mapLocation()) < closestDistance){
+					closestDistance = me.distanceSquaredTo(u.location().mapLocation());
+					ret = u;
 				}
 			}
 		}
