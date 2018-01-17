@@ -22,6 +22,7 @@ public class Player {
 		gc = new GameController();
 		while (true) {
 			EarthUnitController.init();
+			UnitPathfinding.updateMap();
 			System.out.println("Current round: " + gc.round());
 			if (gc.planet().equals(Planet.Earth))
 				earthTurn();

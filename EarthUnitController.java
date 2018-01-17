@@ -14,6 +14,7 @@ public class EarthUnitController extends DefaultUnitController {
 	private static GameController gc = Player.gc;
 	private static final int WORKER_REPLICATE_COST = 15;
 	private static final int NUM_WORKERS = 8;
+	private static final int NUM_FACTORIES = 5;
 	private static final int MINE_TURNS = 50;
 	private static final int KARBONITE_MIN = 300;
 	static Map<Integer, UnitProps> allUnitProps = new HashMap<Integer, UnitProps>();
@@ -37,8 +38,12 @@ public class EarthUnitController extends DefaultUnitController {
 	}
 
 	public static void factoryStep(Unit unit) {
-		// TODO Auto-generated method stub
-		DefaultUnitController.factoryStep(unit);
+		if (unit.structureGarrison().size() != 0
+				&& !UnitPathfinding.firstAvailableDirection(unit).equals(Direction.Center)) {
+			gc.unload(unit.structureGarrison().get(0), UnitPathfinding.firstAvailableDirection(unit));
+		} else if (gc.karbonite() > 25) {
+			// choose a robot to create
+		}
 	}
 
 	public static void healerStep(Unit unit) {
@@ -71,27 +76,29 @@ public class EarthUnitController extends DefaultUnitController {
 		int numFactories = Player.numberOfUnitType(UnitType.Factory);
 		Unit structure = getUnfinishedStructure();
 		MapLocation loc = unit.location().mapLocation();
-		if (unit.abilityHeat() < 10 && gc.karbonite() >= WORKER_REPLICATE_COST && numWorkers < NUM_WORKERS &&
-				!UnitPathfinding.firstAvailableDirection(unit).equals(Direction.Center)) {
+		if (unit.abilityHeat() < 10 && gc.karbonite() >= WORKER_REPLICATE_COST && numWorkers < NUM_WORKERS
+				&& !UnitPathfinding.firstAvailableDirection(unit).equals(Direction.Center)) {
 			workerReplicate(unit);
-		} else if (structure != null && (loc.distanceSquaredTo(structure.location().mapLocation()) <= 2 || unit.movementHeat() < 10)) {
+		} else if (structure != null
+				&& (loc.distanceSquaredTo(structure.location().mapLocation()) <= 2 || unit.movementHeat() < 10)) {
 			workerBuildFactory(unit, structure);
 		} else if ((gc.round() < MINE_TURNS || gc.karbonite() < KARBONITE_MIN) && totalKarbonite > 50) {
 			workerMine(unit);
-		} else if (getUnfinishedStructure() == null && numFactories < 5 && 
-				!UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Factory).equals(Direction.Center)) {
+		} else if (structure == null && numFactories < NUM_FACTORIES
+				&& !UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Factory).equals(Direction.Center)) {
 			workerBlueprintFactory(unit);
-		}else if(totalKarbonite > 0){
+		} else if (totalKarbonite > 0) {
 			workerMine(unit);
 		}
 	}
-	
-	private static void workerReplicate(Unit unit){
-		Direction firstAvailableDirection = UnitPathfinding.firstAvailableDirection(unit);
-		gc.replicate(unit.id(), firstAvailableDirection);
+
+	private static void workerReplicate(Unit unit) {
+		Direction firstAvailableDirection = UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Worker);
+		if(!firstAvailableDirection.equals(Direction.Center))
+			gc.replicate(unit.id(), firstAvailableDirection);
 	}
-	
-	private static void workerBuildFactory(Unit unit, Unit structure){
+
+	private static void workerBuildFactory(Unit unit, Unit structure) {
 		MapLocation loc = unit.location().mapLocation();
 		if (loc.distanceSquaredTo(structure.location().mapLocation()) <= 2) {
 			int id = structure.id();
@@ -102,13 +109,14 @@ public class EarthUnitController extends DefaultUnitController {
 			System.out.println("Worker failed to act");
 		}
 	}
-	
-	private static void workerBlueprintFactory(Unit unit){
+
+	private static void workerBlueprintFactory(Unit unit) {
 		Direction direction = UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Factory);
 		gc.blueprint(unit.id(), UnitType.Factory, direction);
 	}
-	
-	private static void workerMine(Unit unit){
+
+	private static void workerMine(Unit unit) {
+		System.out.println("Mining");
 		MapLocation deposit = bestKarboniteDeposit(unit);
 		for (Direction dir : Direction.values()) {
 			if (gc.canHarvest(unit.id(), dir)) {
@@ -119,6 +127,7 @@ public class EarthUnitController extends DefaultUnitController {
 			}
 		}
 		if (unit.movementHeat() < 10 && deposit.distanceSquaredTo(unit.location().mapLocation()) > 2) {
+			System.out.println("Moving toward location");
 			UnitPathfinding.moveUnitTowardLocation(unit, deposit);
 			return;
 		}
