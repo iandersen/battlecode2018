@@ -86,19 +86,19 @@ public class EarthUnitController extends DefaultUnitController {
 			Unit rocket = getBestRocket(unit);
 			if(rocket != null){
 				if(gc.canLoad(rocket.id(), unit.id())){
-					System.out.println("Loading knight");
 					gc.load(rocket.id(), unit.id());
 				}else{
-					UnitPathfinding.moveUnitTowardLocation(unit, rocket.location().mapLocation());
+					if(unit.movementHeat() < 10)
+						UnitPathfinding.moveUnitTowardLocation(unit, rocket.location().mapLocation());
 				}
 			}
-		}
-		if(Math.random() * 10 < 2){
-			Direction direction = UnitPathfinding.firstAvailableDirection(unit);
-			System.out.println("knight wants to move in direction: " + direction);
-			if(unit.movementHeat() < 10 && !direction.equals(Direction.Center))
-				gc.moveRobot(unit.id(), direction);
-		}
+		}else
+			if(Math.random() * 10 < 2){
+				Direction direction = UnitPathfinding.firstAvailableDirection(unit);
+				//System.out.println("knight wants to move in direction: " + direction);
+				if(unit.movementHeat() == 0 && gc.canMove(unit.id(), direction))
+					gc.moveRobot(unit.id(), direction);
+			}
 	}
 
 	public static void mageStep(Unit unit) {
@@ -124,7 +124,8 @@ public class EarthUnitController extends DefaultUnitController {
 					y = (int)Math.floor(Math.random()*map.getHeight());
 					
 				}
-				gc.launchRocket(unit.id(), new MapLocation(Planet.Mars,x,y));
+				if(gc.canLaunchRocket(unit.id(), new MapLocation(Planet.Mars,x,y)))
+					gc.launchRocket(unit.id(), new MapLocation(Planet.Mars,x,y));
 			}
 			if (unit.health() < 50) {
 				while (map.isPassableTerrainAt(new MapLocation(Planet.Mars,x,y)) != 1) {
@@ -132,7 +133,8 @@ public class EarthUnitController extends DefaultUnitController {
 					y = (int)Math.floor(Math.random()*map.getHeight());
 					
 				}
-				gc.launchRocket(unit.id(), new MapLocation(Planet.Mars,x,y));
+				if(gc.canLaunchRocket(unit.id(), new MapLocation(Planet.Mars,x,y)))
+					gc.launchRocket(unit.id(), new MapLocation(Planet.Mars,x,y));
 			}
 	}
 	
@@ -258,7 +260,7 @@ public class EarthUnitController extends DefaultUnitController {
 		Unit ret = null;
 		for (int i = 0; i < units.size(); i++) {
 			Unit u = units.get(i);
-			if (unit.unitType().equals(UnitType.Rocket)){
+			if (u.unitType().equals(UnitType.Rocket)){
 				if(me.distanceSquaredTo(u.location().mapLocation()) < closestDistance){
 					closestDistance = me.distanceSquaredTo(u.location().mapLocation());
 					ret = u;
