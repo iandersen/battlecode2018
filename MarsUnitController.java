@@ -1,5 +1,6 @@
 import bc.GameController;
 import bc.Unit;
+import bc.Direction;
 
 public class MarsUnitController {
 
@@ -30,7 +31,9 @@ public class MarsUnitController {
 
 	public static void rocketStep(Unit unit) {
 		// TODO Auto-generated method stub
-		DefaultUnitController.rocketStep(unit);
+		if (unit.structureGarrison().size()!=0 && !UnitPathfinding.firstAvailableUnloadDirection(unit).equals(Direction.Center)) {
+			Player.gc.unload(unit.id(), UnitPathfinding.firstAvailableUnloadDirection(unit));
+		}
 	}
 
 	public static void workerStep(Unit unit) {
