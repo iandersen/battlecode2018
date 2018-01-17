@@ -1,7 +1,9 @@
+import bc.Direction;
 import bc.GameController;
 import bc.Unit;
 
 public class MarsUnitController {
+	private static GameController gc = Player.gc;
 
 	public static void factoryStep(Unit unit) {
 		// TODO Auto-generated method stub
@@ -14,8 +16,13 @@ public class MarsUnitController {
 	}
 
 	public static void knightStep(Unit unit) {
-		// TODO Auto-generated method stub
-		DefaultUnitController.knightStep(unit);
+		if(!unit.location().isOnMap())
+			return;
+		if(Math.random() * 10 < 2){
+			Direction direction = UnitPathfinding.firstAvailableDirection(unit);
+			if(unit.movementHeat() == 0 && gc.canMove(unit.id(), direction))
+				gc.moveRobot(unit.id(), direction);
+		}
 	}
 
 	public static void mageStep(Unit unit) {
