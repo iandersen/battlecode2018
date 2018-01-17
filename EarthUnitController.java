@@ -92,12 +92,25 @@ public class EarthUnitController extends DefaultUnitController {
 						UnitPathfinding.moveUnitTowardLocation(unit, rocket.location().mapLocation());
 				}
 			}
-		}else
-			if(Math.random() * 10 < 2){
-				Direction direction = UnitPathfinding.firstAvailableDirection(unit);
-				//System.out.println("knight wants to move in direction: " + direction);
-				if(unit.movementHeat() == 0 && gc.canMove(unit.id(), direction))
-					gc.moveRobot(unit.id(), direction);
+		}else if(Math.random() * 10 < 2){
+				VecUnit enemies = gc.senseNearbyUnits(unit.location().mapLocation(), Math.min(unit.attackRange(), Math.min(unit.visionRange(), unit.abilityRange())));
+				boolean attacked = false;
+				if(unit.attackHeat() < 10)
+					for(int i = 0; i < enemies.size(); i++){
+						Unit enemy = enemies.get(i);
+						if(!enemy.team().equals(gc.team()))
+							if(gc.canAttack(unit.id(), enemy.id())){
+								gc.attack(unit.id(), enemy.id());
+								attacked = true;
+								break;
+							}
+					}
+				if(!attacked){
+					Direction direction = UnitPathfinding.firstAvailableDirection(unit);
+					//System.out.println("knight wants to move in direction: " + direction);
+					if(unit.movementHeat() == 0 && gc.canMove(unit.id(), direction))
+						gc.moveRobot(unit.id(), direction);
+				}
 			}
 	}
 
@@ -145,6 +158,8 @@ public class EarthUnitController extends DefaultUnitController {
 		int numFactories = Player.numberOfUnitType(UnitType.Factory);
 		int numRockets = Player.numberOfUnitType(UnitType.Rocket);
 		Unit structure = getUnfinishedStructure();
+		if(!unit.location().isOnMap())
+			return;
 		MapLocation loc = unit.location().mapLocation();
 		if (unit.abilityHeat() < 10 && gc.karbonite() >= WORKER_REPLICATE_COST && numWorkers < NUM_WORKERS
 				&& !UnitPathfinding.firstAvailableDirection(unit).equals(Direction.Center)) {
