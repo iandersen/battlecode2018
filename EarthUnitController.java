@@ -1,12 +1,12 @@
 import java.util.HashMap;
 import java.util.Map;
 
-import bc.Direction;
 import bc.GameController;
 import bc.MapLocation;
+import bc.Unit;
+import bc.Direction;
 import bc.Planet;
 import bc.PlanetMap;
-import bc.Unit;
 import bc.UnitType;
 import bc.VecUnit;
 
@@ -38,7 +38,33 @@ public class EarthUnitController extends DefaultUnitController {
 
 	public static void factoryStep(Unit unit) {
 		// TODO Auto-generated method stub
-		DefaultUnitController.factoryStep(unit);
+		// if there is something in the garrison, and there is space to unload, unload
+		// else if there is available karbonite, choose a robot to create
+		if (unit.structureIsBuilt()==1) {
+			if (unit.structureGarrison().size()!=0 && !UnitPathfinding.firstAvailableDirection(unit).equals(Direction.Center)) {
+				gc.unload(unit.structureGarrison().get(0), UnitPathfinding.firstAvailableDirection(unit));
+			}
+			else if (gc.karbonite() > 25 && unit.movementHeat() < 10) {
+				// choose a robot to create
+				if (Player.numberOfUnitType(UnitType.Worker) < NUM_WORKERS) {
+					gc.produceRobot(unit.id(), UnitType.Worker);
+				}
+				
+				else {
+					int random = (int)Math.floor(Math.random()*2);
+					if (random == 1) {
+						gc.produceRobot(unit.id(), UnitType.Knight);
+					}
+					else {
+						gc.produceRobot(unit.id(), UnitType.Ranger);
+					}
+					
+				}
+			}
+		}
+		
+		
+		//DefaultUnitController.factoryStep(unit);
 	}
 
 	public static void healerStep(Unit unit) {
