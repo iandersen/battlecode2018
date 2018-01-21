@@ -14,6 +14,8 @@ import bc.UnitType;
 import bc.VecUnit;
 
 public class EarthUnitController extends DefaultUnitController {
+	private static int[] createRobotList = {2,2,3,3,3,4,5};
+	private static HashMap<Integer,Integer> factoryList = new HashMap<>();
 	private static GameController gc = Player.gc;
 	private static final int WORKER_REPLICATE_COST = 15;
 	private static final int NUM_WORKERS = 8;
@@ -44,31 +46,41 @@ public class EarthUnitController extends DefaultUnitController {
 
 	public static void factoryStep(Unit unit) {
 		// TODO Auto-generated method stub
-		// if there is something in the garrison, and there is space to unload, unload
-		// else if there is available karbonite, choose a robot to create
-		int numKnights = Player.numberOfUnitType(UnitType.Knight);
-		if (unit.structureIsBuilt()==1) {
-			//System.out.println("Garrison size: " + unit.structureGarrison().size());
-			//System.out.println("Unload direction: " + UnitPathfinding.firstAvailableUnloadDirection(unit));
-			if (unit.structureGarrison().size()!=0 && !UnitPathfinding.firstAvailableUnloadDirection(unit).equals(Direction.Center)) {
-				gc.unload(unit.id(), UnitPathfinding.firstAvailableUnloadDirection(unit));
-			}
-			else if (gc.karbonite() > 25 && unit.isFactoryProducing() == 0) {
-				// choose a robot to create
-				if (Player.numberOfUnitType(UnitType.Worker) < NUM_WORKERS) {
-					gc.produceRobot(unit.id(), UnitType.Worker);
+				// if there is something in the garrison, and there is space to unload, unload
+				// else if there is available karbonite, choose a robot to create
+				if(factoryList.get(unit.id()) == null) {
+					factoryList.put(unit.id(), 0);
 				}
-				
-				else if(numKnights < NUM_KNIGHTS){
-					int random = (int)Math.floor(Math.random()*4);
-					switch(random) {
-					case(3) : gc.produceRobot(unit.id(), UnitType.Knight); break;
-					case(2) : gc.produceRobot(unit.id(), UnitType.Knight); break;
-					case(1) : gc.produceRobot(unit.id(), UnitType.Knight); break;
+				int numKnights = Player.numberOfUnitType(UnitType.Knight);
+				if (unit.structureIsBuilt()==1) {
+					//System.out.println("Garrison size: " + unit.structureGarrison().size());
+					//System.out.println("Unload direction: " + UnitPathfinding.firstAvailableUnloadDirection(unit));
+					if (unit.structureGarrison().size()!=0 && !UnitPathfinding.firstAvailableUnloadDirection(unit).equals(Direction.Center)) {
+						gc.unload(unit.id(), UnitPathfinding.firstAvailableUnloadDirection(unit));
+					}
+					else if (gc.karbonite() > 25 && unit.isFactoryProducing() == 0) {
+						// choose a robot to create
+						if (Player.numberOfUnitType(UnitType.Worker) < NUM_WORKERS) {
+							gc.produceRobot(unit.id(), UnitType.Worker);
+						}
+						
+						else if(numKnights < NUM_KNIGHTS){
+							if (factoryList.get(unit.id()) == createRobotList.length - 2) {
+								factoryList.put(unit.id(), -1);
+							}
+							factoryList.put(unit.id(), factoryList.get(unit.id())+1);
+							switch(createRobotList[factoryList.get(unit.id())]) {
+							case(2) : gc.produceRobot(unit.id(), UnitType.Knight); break;
+							case(3) : gc.produceRobot(unit.id(), UnitType.Ranger); break;
+							case(4) : gc.produceRobot(unit.id(), UnitType.Mage); break;
+							case(5) : gc.produceRobot(unit.id(), UnitType.Healer); break;
+							}
+							
+							
+							
+						}
 					}
 				}
-			}
-		}
 	}
 
 	public static void healerStep(Unit unit) {
