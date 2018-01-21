@@ -1,4 +1,7 @@
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import bc.GameController;
@@ -14,9 +17,9 @@ public class EarthUnitController extends DefaultUnitController {
 	private static GameController gc = Player.gc;
 	private static final int WORKER_REPLICATE_COST = 15;
 	private static final int NUM_WORKERS = 8;
-	private static final int NUM_FACTORIES = 5;
+	private static final int NUM_FACTORIES = 100;
 	private static final int NUM_ROCKETS = 1;
-	private static final int NUM_KNIGHTS = 25;
+	private static final int NUM_KNIGHTS = 0;
 	private static final int MINE_TURNS = 50;
 	private static final int KARBONITE_MIN = 300;
 	static Map<Integer, UnitProps> allUnitProps = new HashMap<Integer, UnitProps>();
@@ -43,7 +46,7 @@ public class EarthUnitController extends DefaultUnitController {
 		// TODO Auto-generated method stub
 		// if there is something in the garrison, and there is space to unload, unload
 		// else if there is available karbonite, choose a robot to create
-		int numKnights = Player.numberOfUnitType(UnitType.Ranger);
+		int numKnights = Player.numberOfUnitType(UnitType.Knight);
 		if (unit.structureIsBuilt()==1) {
 			//System.out.println("Garrison size: " + unit.structureGarrison().size());
 			//System.out.println("Unload direction: " + UnitPathfinding.firstAvailableUnloadDirection(unit));
@@ -59,13 +62,10 @@ public class EarthUnitController extends DefaultUnitController {
 				else if(numKnights < NUM_KNIGHTS){
 					int random = (int)Math.floor(Math.random()*4);
 					switch(random) {
-					case(3) : gc.produceRobot(unit.id(), UnitType.Ranger); break;
+					case(3) : gc.produceRobot(unit.id(), UnitType.Knight); break;
 					case(2) : gc.produceRobot(unit.id(), UnitType.Knight); break;
-					case(1) : gc.produceRobot(unit.id(), UnitType.Ranger); break;
+					case(1) : gc.produceRobot(unit.id(), UnitType.Knight); break;
 					}
-
-					
-					
 				}
 			}
 		}
@@ -154,11 +154,23 @@ public class EarthUnitController extends DefaultUnitController {
 		int numWorkers = Player.numberOfUnitType(UnitType.Worker);
 		int numFactories = Player.numberOfUnitType(UnitType.Factory);
 		int numRockets = Player.numberOfUnitType(UnitType.Rocket);
+		boolean stayByFactory = !((UnitProps.props.get(unit.id()) == null || !UnitProps.props.get(unit.id()).hasBuiltFactory) && numFactories < NUM_FACTORIES);
 		Unit structure = getUnfinishedStructure();
 		if(!unit.location().isOnMap())
 			return;
 		MapLocation loc = unit.location().mapLocation();
-		if (unit.abilityHeat() < 10 && gc.karbonite() >= WORKER_REPLICATE_COST && numWorkers < NUM_WORKERS
+		stayByFactory = false;
+		if(stayByFactory){
+//			Unit factoryToStickTo = UnitProps.props.get(unit.id()).factoryToStickTo;
+//			if(factoryToStickTo != null){
+//				Direction d = UnitPathfinding.firstAvailableDiagDirection(factoryToStickTo);
+//				MapLocation newLoc = factoryToStickTo.location().mapLocation().add(d);
+//				if(loc.distanceSquaredTo(newLoc) > 0){
+//					if(unit.movementHeat() < 10)
+//						gc.moveRobot(unit.id(), loc.directionTo(newLoc));
+//				}
+//			}
+		} else if (unit.abilityHeat() < 10 && gc.karbonite() >= WORKER_REPLICATE_COST && numWorkers < NUM_WORKERS
 				&& !UnitPathfinding.firstAvailableDirection(unit).equals(Direction.Center)) {
 			workerReplicate(unit);
 		} else if (structure != null
@@ -171,7 +183,6 @@ public class EarthUnitController extends DefaultUnitController {
 			workerBlueprintFactory(unit);
 		} else if (gc.researchInfo().getLevel(UnitType.Rocket) > 0 && structure == null && numRockets < NUM_ROCKETS
 				&& !UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Rocket).equals(Direction.Center)) {
-			//System.out.println("Blueprinting rocket");
 			workerBlueprintRocket(unit);
 		} else if (totalKarbonite > 0) {
 			workerMine(unit);
@@ -198,8 +209,57 @@ public class EarthUnitController extends DefaultUnitController {
 	}
 
 	private static void workerBlueprintFactory(Unit unit) {
-		Direction direction = UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Factory);
-		gc.blueprint(unit.id(), UnitType.Factory, direction);
+		int numFactories = Player.numberOfUnitType(UnitType.Factory);
+		MapLocation unitLocation = unit.location().mapLocation();
+		if(numFactories == 0){
+			Direction direction = UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Factory);
+			gc.blueprint(unit.id(), UnitType.Factory, direction);
+		} else {
+			HashMap<Integer, Unit> factories = getAllUnitsByType(UnitType.Factory);
+			List<Integer> orderedKeys = new ArrayList<Integer>();
+			for(int i : factories.keySet())
+				orderedKeys.add(i);
+			Collections.sort(orderedKeys);
+			outer: for(int i : orderedKeys){
+				Unit factory = factories.get(i);
+				MapLocation source = factory.location().mapLocation();
+				Direction[] buildDirections = {Direction.Northwest, Direction.Northeast, Direction.Southeast, Direction.Southwest};
+				int dist = 2;
+				for(Direction d : buildDirections){
+					MapLocation newSpot = new MapLocation(source.getPlanet(), source.getX(), source.getY());
+					for(int n = 0; n < dist; n++)
+						newSpot = newSpot.add(d);
+					if(gc.startingMap(gc.planet()).onMap(newSpot))
+						if(gc.startingMap(gc.planet()).isPassableTerrainAt(newSpot) == 1 && !gc.hasUnitAtLocation(newSpot)){
+							if (unitLocation.distanceSquaredTo(newSpot) <= 2) {
+								System.out.println("old: " + source + ", new: " + newSpot);
+								if(gc.canBlueprint(unit.id(), UnitType.Factory, unitLocation.directionTo(newSpot))){
+									gc.blueprint(unit.id(), UnitType.Factory, unitLocation.directionTo(newSpot));
+									UnitProps props = UnitProps.props.get(unit.id());
+									if(props == null)
+										props = new UnitProps();
+									props.hasBuiltFactory = true;
+									UnitProps.props.put(unit.id(), props);
+								}
+							} else if (unit.movementHeat() < 10) {
+								UnitPathfinding.moveUnitTowardLocation(unit, newSpot);
+							}
+							break outer;
+						}
+				}
+			}
+		}
+	}
+	
+	public static HashMap<Integer, Unit> getAllUnitsByType(UnitType type){
+		HashMap<Integer, Unit> ret = new HashMap<Integer, Unit>();
+		VecUnit units = gc.myUnits();
+		for (int i = 0; i < units.size(); i++) {
+			Unit unit = units.get(i);
+			if(unit.unitType() == type)
+				ret.put(unit.id(), unit);
+		}
+		return ret;
 	}
 	
 	private static void workerBlueprintRocket(Unit unit) {

@@ -255,19 +255,19 @@ public class UnitPathfinding {
 
 	public static Direction moveUnitTowardLocation(Unit unit, MapLocation location) {
 		MapLocation unitMapLocation = unit.location().mapLocation();
-		Direction dir = unitMapLocation.directionTo(startPathToLocation(unit, location));
-		if(canMoveUnitInDirection(unit, dir))
-			moveUnitInDirection(unit, dir);
-		return dir;
-//		 Direction idealDirection = unitMapLocation.directionTo(location);
-//		 Direction returnDirection = unitMapLocation.directionTo(location);
-//		 for (int i = 0; !canMoveUnitInDirection(unit, returnDirection) && i <
-//		 tryToTurn.length; i++) {
-//		 returnDirection = rotate(idealDirection, tryToTurn[i]);
-//		 }
-//		 if(canMoveUnitInDirection(unit, returnDirection))
-//		 moveUnitInDirection(unit, returnDirection);
-//		 return returnDirection;
+//		Direction dir = unitMapLocation.directionTo(startPathToLocation(unit, location));
+//		if(canMoveUnitInDirection(unit, dir))
+//			moveUnitInDirection(unit, dir);
+//		return dir;
+		 Direction idealDirection = unitMapLocation.directionTo(location);
+		 Direction returnDirection = unitMapLocation.directionTo(location);
+		 for (int i = 0; !canMoveUnitInDirection(unit, returnDirection) && i <
+		 tryToTurn.length; i++) {
+		 returnDirection = rotate(idealDirection, tryToTurn[i]);
+		 }
+		 if(canMoveUnitInDirection(unit, returnDirection))
+		 moveUnitInDirection(unit, returnDirection);
+		 return returnDirection;
 	}
 
 	private static void moveUnitInDirection(Unit unit, Direction direction) {
@@ -319,10 +319,21 @@ public class UnitPathfinding {
 	}
 	
 	public static Direction firstAvailableUnloadDirection(Unit unit) {
+		Direction[] orthDirections = {Direction.North, Direction.East, Direction.South, Direction.West};
 		if(unit.location().isOnMap())
-			for (int i = 0; i < directions.length; i++) {
-				if (gc.canUnload(unit.id(), directions[i]))
-					return directions[i];
+			for (int i = 0; i < orthDirections.length; i++) {
+				if (gc.canUnload(unit.id(), orthDirections[i]))
+					return orthDirections[i];
+			}
+		return Direction.Center;
+	}
+	
+	public static Direction firstAvailableDiagDirection(Unit unit) {
+		Direction[] orthDirections = {Direction.Northwest, Direction.Northeast, Direction.Southeast, Direction.Southwest};
+		if(unit.location().isOnMap())
+			for (int i = 0; i < orthDirections.length; i++) {
+				if (gc.canUnload(unit.id(), orthDirections[i]))
+					return orthDirections[i];
 			}
 		return Direction.Center;
 	}
