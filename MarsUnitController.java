@@ -21,19 +21,19 @@ public class MarsUnitController {
 	public static void knightStep(Unit unit) {
 		if(!unit.location().isOnMap())
 			return;
+		VecUnit enemies = gc.senseNearbyUnits(unit.location().mapLocation(), Math.min(unit.attackRange(), Math.min(unit.visionRange(), unit.abilityRange())));
+		boolean attacked = false;
+		if(unit.attackHeat() < 10)
+			for(int i = 0; i < enemies.size(); i++){
+				Unit enemy = enemies.get(i);
+				if(!enemy.team().equals(gc.team()))
+					if(gc.canAttack(unit.id(), enemy.id())){
+						gc.attack(unit.id(), enemy.id());
+						attacked = true;
+						break;
+					}
+			}
 		if(Math.random() * 10 < .5){
-			VecUnit enemies = gc.senseNearbyUnits(unit.location().mapLocation(), Math.min(unit.attackRange(), Math.min(unit.visionRange(), unit.abilityRange())));
-			boolean attacked = false;
-			if(unit.attackHeat() < 10)
-				for(int i = 0; i < enemies.size(); i++){
-					Unit enemy = enemies.get(i);
-					if(!enemy.team().equals(gc.team()))
-						if(gc.canAttack(unit.id(), enemy.id())){
-							gc.attack(unit.id(), enemy.id());
-							attacked = true;
-							break;
-						}
-				}
 			if(!attacked){
 				Direction direction = UnitPathfinding.firstAvailableDirection(unit);
 				//System.out.println("knight wants to move in direction: " + direction);

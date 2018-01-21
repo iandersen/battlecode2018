@@ -47,7 +47,7 @@ public class UnitPathfinding {
 							.isPassableTerrainAt(new MapLocation(gc.planet(), x, y));
 			marsInitialized = true;
 		}
-		refreshUnitPositionsOnMap();
+//		refreshUnitPositionsOnMap();
 	}
 
 	private static void refreshUnitPositionsOnMap() {
@@ -76,39 +76,134 @@ public class UnitPathfinding {
 		MapLocation origin = unit.location().mapLocation();
 		MapLocation currentNode = origin;
 		MapLocation destNode = origin;
-		addAdjacentNodes(currentNode, isOpen, isVisited);
-		isVisited[origin.getX()][origin.getY()] = true;
-		int steps = 0;
-		while (currentNode.getX() != destX || currentNode.getY() != destY) {
-			isVisited[currentNode.getX()][currentNode.getY()] = true;
-			isOpen[currentNode.getX()][currentNode.getY()] = false;
-			addAdjacentNodes(currentNode, isOpen, isVisited);
-			MapLocation bestNode = getClosestSquare(isOpen, location, origin, isVisited);
-//			System.out.println("moving from " + origin + " to: " + bestNode + " to get to " + location);
-			isOpen[bestNode.getX()][bestNode.getY()] = false;
-			if(currentNode.getX() == origin.getX() && currentNode.getY() == origin.getY()){
-				destNode = bestNode;
+		int[][] costMap = new int[width][height];
+		for(int x = 0; x < costMap.length; x++)
+			for(int y = 0; y < costMap[0].length; y++)
+				costMap[x][y] = 0;
+		updateHMap(costMap, new Coord(origin), new Coord(location));
+		updateHMap(costMap, new Coord(location), new Coord(origin));
+		//print2dArray(costMap);
+		int minCost = Integer.MAX_VALUE;
+		for(Direction d : directions){
+			MapLocation l = origin.add(d);
+			if(l.getX() < width && l.getX() >= 0 && l.getY() < height && l.getY() >= 0){
+				int cost = costMap[l.getX()][l.getY()];
+				if(cost < minCost){
+					minCost = cost;
+					destNode = l;
+				}
 			}
-			currentNode = bestNode;
-			steps++;
 		}
-		System.out.println("Steps: " + steps);
-		System.out.println("moving from " + origin + " to: " + destNode + " to get to " + location);
 		return destNode;
+	}
+	
+	private static void updateHMap(int[][] costMap, Coord start, Coord finish){
+		Stack<Coord> openNodes = new Stack<Coord>();
+		Stack<Coord> visitedNodes = new Stack<Coord>();
+		Stack<Coord> temp = new Stack<Coord>();
+		openNodes.push(start);
+		int depth = 0;
+		outer: while(true){
+			while(openNodes.size() > 0){
+				Coord n = openNodes.pop();
+				visitedNodes.push(n);
+				Stack<Coord> adjNodes = getAdjacentNodes(n, visitedNodes, openNodes);
+				for(Coord m : adjNodes){
+					//if(m.equals(finish))
+					//	break outer;
+					if(!temp.contains(m)){
+						costMap[m.getX()][m.getY()] += depth + 1;
+						temp.push(m);
+					}
+				}
+			}
+			depth++;
+			openNodes = temp;
+			temp = new Stack<Coord>();
+			if(openNodes.size() == 0)
+				break;
+		}
+	}
+	
+	public static class Coord{
+		Planet p;
+		int x;
+		int y;
+		public Coord(MapLocation m){
+			this.p = m.getPlanet();
+			this.x = m.getX();
+			this.y = m.getY();
+		}
+		
+		public Coord(Planet p, int x, int y){
+			this.p = p;
+			this.x = x;
+			this.y = y;
+		}
+		
+		public int getX(){
+			return this.x;
+		}
+		
+		public Planet getPlanet(){
+			return p;
+		}
+		
+		public int getY(){
+			return this.y;
+		}
+		
+		public MapLocation toLocation(){
+			return new MapLocation(this.p, this.x, this.y);
+		}
+		
+		public boolean equals(Object o){
+			if(o instanceof Coord){
+				Coord c = (Coord)o;
+				if(c.p.toString().equals(this.p.toString()))
+					if(c.x == this.x && c.y == this.y)
+						return true;
+			}
+			return false;
+		}
+	}
+	
+	private static void print2dArray(boolean[][] array) {
+        int length = 2;
+        for (boolean[] row : array) {
+            for (boolean col : row) {
+            	int n = col ? 1 : 0;
+                String s = "" + n;
+                while (s.length() <= length)
+                    s = " " + s;
+                System.out.print(s);
+            }
+            System.out.println();
+        }
+    }
+	
+	private static void print2dArray(int[][] array) {
+		int length = 4;
+		for (int[] row : array) {
+			for (int col : row) {
+				String s = "" + col;
+				while (s.length() <= length)
+					s = " " + s;
+				System.out.print(s);
+			}
+			System.out.println();
+		}
 	}
 
 	private static MapLocation getClosestSquare(boolean[][] openNodes, MapLocation destination, MapLocation origin, boolean[][] isVisited) {
 		long smallestDistance = Integer.MAX_VALUE;
 		MapLocation ret = origin;
-		int startX = origin.getX();
-		int startY = origin.getY();
 		int destX = origin.getX();
 		int destY = origin.getY();
 		for (int x = 0; x < openNodes.length; x++) {
 			for (int y = 0; y < openNodes[x].length; y++) {
 				if (openNodes[x][y] && !isVisited[x][y]) {
-					int dist = (int) (Math.pow(x - destX, 2) + Math.pow(y - destY, 2) + 2*(Math.pow(x - startX, 2)
-							+ Math.pow(y - startY, 2)));
+					int dist = Math.max(Math.abs(x - destX), Math.abs(y - destY)); 
 					if (dist < smallestDistance) {
 						smallestDistance = dist;
 						ret = new MapLocation(gc.planet(), x, y);
@@ -122,17 +217,33 @@ public class UnitPathfinding {
 	private static void addAdjacentNodes(MapLocation loc, boolean[][] isOpen, boolean[][] isVisited) {
 		for (Direction d : directions) {
 			MapLocation m = loc.add(d);
+			int[][] colMap = collisionMap(gc.planet());
 			int x = m.getX();
 			int y = m.getY();
 			if(x >= 0 && y >= 0 && x < isOpen.length && y < isOpen[0].length){
 				if (!isVisited[x][y]) {
-					if (gc.canSenseLocation(m) && gc.isOccupiable(m) == 1 && !gc.hasUnitAtLocation(m))
-						isOpen[x][y] = true;
-					else if (!gc.canSenseLocation(m))
+					if(colMap[x][y] == 1)
 						isOpen[x][y] = true;
 				}
 			}
 		}
+	}
+	
+	private static Stack<Coord> getAdjacentNodes(Coord loc, Stack<Coord> visited, Stack<Coord> open) {
+		Stack<Coord> ret = new Stack<Coord>();
+		for (Direction d : directions) {
+			Coord m = new Coord(loc.toLocation().add(d));
+			int[][] colMap = collisionMap(gc.planet());
+			int x = m.getX();
+			int y = m.getY();
+			if(x >= 0 && y >= 0 && x < colMap.length && y < colMap[0].length){
+				if (!visited.contains(m) && !open.contains(m)) {
+					if(colMap[x][y] == 1)
+						ret.push(m);
+				}
+			}
+		}
+		return ret;
 	}
 
 	private static int[][] collisionMap(Planet p) {
@@ -144,19 +255,19 @@ public class UnitPathfinding {
 
 	public static Direction moveUnitTowardLocation(Unit unit, MapLocation location) {
 		MapLocation unitMapLocation = unit.location().mapLocation();
-//		Direction dir = unitMapLocation.directionTo(startPathToLocation(unit, location));
-//		if(canMoveUnitInDirection(unit, dir))
-//			moveUnitInDirection(unit, dir);
-//		return dir;
-		 Direction idealDirection = unitMapLocation.directionTo(location);
-		 Direction returnDirection = unitMapLocation.directionTo(location);
-		 for (int i = 0; !canMoveUnitInDirection(unit, returnDirection) && i <
-		 tryToTurn.length; i++) {
-		 returnDirection = rotate(idealDirection, tryToTurn[i]);
-		 }
-		 if(canMoveUnitInDirection(unit, returnDirection))
-		 moveUnitInDirection(unit, returnDirection);
-		 return returnDirection;
+		Direction dir = unitMapLocation.directionTo(startPathToLocation(unit, location));
+		if(canMoveUnitInDirection(unit, dir))
+			moveUnitInDirection(unit, dir);
+		return dir;
+//		 Direction idealDirection = unitMapLocation.directionTo(location);
+//		 Direction returnDirection = unitMapLocation.directionTo(location);
+//		 for (int i = 0; !canMoveUnitInDirection(unit, returnDirection) && i <
+//		 tryToTurn.length; i++) {
+//		 returnDirection = rotate(idealDirection, tryToTurn[i]);
+//		 }
+//		 if(canMoveUnitInDirection(unit, returnDirection))
+//		 moveUnitInDirection(unit, returnDirection);
+//		 return returnDirection;
 	}
 
 	private static void moveUnitInDirection(Unit unit, Direction direction) {

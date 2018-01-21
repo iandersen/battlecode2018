@@ -45,8 +45,8 @@ public class EarthUnitController extends DefaultUnitController {
 		// else if there is available karbonite, choose a robot to create
 		int numKnights = Player.numberOfUnitType(UnitType.Knight);
 		if (unit.structureIsBuilt()==1) {
-			System.out.println("Garrison size: " + unit.structureGarrison().size());
-			System.out.println("Unload direction: " + UnitPathfinding.firstAvailableUnloadDirection(unit));
+			//System.out.println("Garrison size: " + unit.structureGarrison().size());
+			//System.out.println("Unload direction: " + UnitPathfinding.firstAvailableUnloadDirection(unit));
 			if (unit.structureGarrison().size()!=0 && !UnitPathfinding.firstAvailableUnloadDirection(unit).equals(Direction.Center)) {
 				gc.unload(unit.id(), UnitPathfinding.firstAvailableUnloadDirection(unit));
 			}
@@ -60,11 +60,11 @@ public class EarthUnitController extends DefaultUnitController {
 					int random = (int)Math.floor(Math.random()*2);
 					random = 1;
 					if (random == 1) {
-						System.out.println("Producing Knight");
+						//System.out.println("Producing Knight");
 						gc.produceRobot(unit.id(), UnitType.Knight);
 					}
 					else {
-						System.out.println("Producing Ranger");
+						//System.out.println("Producing Ranger");
 						gc.produceRobot(unit.id(), UnitType.Ranger);
 					}
 					
@@ -92,26 +92,25 @@ public class EarthUnitController extends DefaultUnitController {
 						UnitPathfinding.moveUnitTowardLocation(unit, rocket.location().mapLocation());
 				}
 			}
-		}else if(Math.random() * 10 < 2){
-				VecUnit enemies = gc.senseNearbyUnits(unit.location().mapLocation(), Math.min(unit.attackRange(), Math.min(unit.visionRange(), unit.abilityRange())));
-				boolean attacked = false;
-				if(unit.attackHeat() < 10)
-					for(int i = 0; i < enemies.size(); i++){
-						Unit enemy = enemies.get(i);
-						if(!enemy.team().equals(gc.team()))
-							if(gc.canAttack(unit.id(), enemy.id())){
-								gc.attack(unit.id(), enemy.id());
-								attacked = true;
-								break;
-							}
-					}
-				if(!attacked){
-					Direction direction = UnitPathfinding.firstAvailableDirection(unit);
-					//System.out.println("knight wants to move in direction: " + direction);
-					if(unit.movementHeat() == 0 && gc.canMove(unit.id(), direction))
-						gc.moveRobot(unit.id(), direction);
+		}else{
+			VecUnit enemies = gc.senseNearbyUnits(unit.location().mapLocation(), (long)Math.floor(Math.sqrt(unit.attackRange())));
+			boolean attacked = false;
+			if(unit.attackHeat() < 10)
+				for(int i = 0; i < enemies.size(); i++){
+					Unit enemy = enemies.get(i);
+					if(!enemy.team().equals(gc.team()))
+						if(gc.canAttack(unit.id(), enemy.id())){
+							gc.attack(unit.id(), enemy.id());
+							attacked = true;
+							break;
+						}
 				}
+			if(!attacked && Math.random() < .3){
+				Direction direction = UnitPathfinding.firstAvailableDirection(unit);
+				if(unit.movementHeat() == 0 && gc.canMove(unit.id(), direction))
+					gc.moveRobot(unit.id(), direction);
 			}
+		}
 	}
 
 	public static void mageStep(Unit unit) {
@@ -174,11 +173,12 @@ public class EarthUnitController extends DefaultUnitController {
 			workerBlueprintFactory(unit);
 		} else if (gc.researchInfo().getLevel(UnitType.Rocket) > 0 && structure == null && numRockets < NUM_ROCKETS
 				&& !UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Rocket).equals(Direction.Center)) {
-			System.out.println("Blueprinting rocket");
+			//System.out.println("Blueprinting rocket");
 			workerBlueprintRocket(unit);
 		} else if (totalKarbonite > 0) {
 			workerMine(unit);
 		}
+		
 	}
 
 	private static void workerReplicate(Unit unit) {
@@ -195,7 +195,7 @@ public class EarthUnitController extends DefaultUnitController {
 		} else if (unit.movementHeat() < 10) {
 			UnitPathfinding.moveUnitTowardLocation(unit, structure.location().mapLocation());
 		} else {
-			System.out.println("Worker failed to act");
+			//System.out.println("Worker failed to act");
 		}
 	}
 
@@ -210,27 +210,32 @@ public class EarthUnitController extends DefaultUnitController {
 	}
 
 	private static void workerMine(Unit unit) {
+		long nanos = System.nanoTime();
 		MapLocation deposit = bestKarboniteDeposit(unit);
 		for (Direction dir : Direction.values()) {
 			if (gc.canHarvest(unit.id(), dir)) {
 				gc.harvest(unit.id(), dir);
 				karboniteCount[deposit.getX()][deposit.getY()] -= Math.min(unit.workerHarvestAmount(),
 						karboniteCount[deposit.getX()][deposit.getY()]);
+				//System.out.println("Worker time elapsed (1): " + (Math.round((System.nanoTime() - nanos) / 1000.0) / 1000.0));
 				return;
 			}
 		}
 		if (unit.movementHeat() < 10 && deposit.distanceSquaredTo(unit.location().mapLocation()) > 2) {
 			UnitPathfinding.moveUnitTowardLocation(unit, deposit);
+			//System.out.println("Worker time elapsed (2): " + (Math.round((System.nanoTime() - nanos) / 1000.0) / 1000.0));
 			return;
 		}
 		if (gc.canHarvest(unit.id(), unit.location().mapLocation().directionTo(deposit))) {
 			gc.harvest(unit.id(), unit.location().mapLocation().directionTo(deposit));
 			karboniteCount[deposit.getX()][deposit.getY()] -= unit.workerHarvestAmount();
+			//System.out.println("Worker time elapsed (3): " + (Math.round((System.nanoTime() - nanos) / 1000.0) / 1000.0));
 			return;
 		}
 		if (deposit.distanceSquaredTo(unit.location().mapLocation()) <= 2) {
 			karboniteCount[deposit.getX()][deposit.getY()] = 0;
 		}
+		//System.out.println("Worker time elapsed (4): " + (Math.round((System.nanoTime() - nanos) / 1000.0) / 1000.0));
 	}
 
 	public static Unit getUnfinishedStructure() {
