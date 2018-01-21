@@ -32,7 +32,7 @@ public class Player {
 		while (true) {
 			EarthUnitController.init();
 			UnitPathfinding.updateMap();
-//			System.out.println("Current round: " + gc.round() + " time left: " + gc.getTimeLeftMs());
+			System.out.println("Current round: " + gc.round() + " time left: " + gc.getTimeLeftMs());
 			if (gc.round() % 5 == 0) { System.gc(); }
 			if (gc.planet().equals(Planet.Earth))
 				earthTurn();

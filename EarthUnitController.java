@@ -19,7 +19,7 @@ public class EarthUnitController extends DefaultUnitController {
 	private static final int NUM_WORKERS = 8;
 	private static final int NUM_FACTORIES = 100;
 	private static final int NUM_ROCKETS = 1;
-	private static final int NUM_KNIGHTS = 0;
+	private static final int NUM_KNIGHTS = 300;
 	private static final int MINE_TURNS = 50;
 	private static final int KARBONITE_MIN = 300;
 	static Map<Integer, UnitProps> allUnitProps = new HashMap<Integer, UnitProps>();
@@ -62,63 +62,75 @@ public class EarthUnitController extends DefaultUnitController {
 				else if(numKnights < NUM_KNIGHTS){
 					int random = (int)Math.floor(Math.random()*4);
 					switch(random) {
-					case(3) : gc.produceRobot(unit.id(), UnitType.Knight); break;
+					case(3) : gc.produceRobot(unit.id(), UnitType.Ranger); break;
 					case(2) : gc.produceRobot(unit.id(), UnitType.Knight); break;
-					case(1) : gc.produceRobot(unit.id(), UnitType.Knight); break;
+					case(1) : gc.produceRobot(unit.id(), UnitType.Ranger); break;
 					}
 				}
 			}
 		}
 	}
+	
+	public static void meshStep(Unit unit){
+		if(!unit.location().isOnMap())
+			return;
+		int id = unit.id();
+		UnitProps props = UnitProps.get(id);
+		if(props.movesInStartDirection == 0){
+			Direction d = UnitPathfinding.firstAvailableDiagMoveDirection(unit);
+			MapLocation loc = unit.location().mapLocation();
+			if(d.equals(Direction.Center)){
+				Direction[] ds = {Direction.Northwest, Direction.Northeast, Direction.Southeast, Direction.Southwest};
+				for(Direction x : ds){
+					MapLocation newLoc = loc.add(x);
+					if(gc.hasUnitAtLocation(newLoc)){
+						Unit u = gc.senseUnitAtLocation(newLoc);
+						UnitProps uProps = UnitProps.get(u.id());
+						uProps.movesInStartDirection = 0;
+					}
+				}
+			}else{
+				if(unit.movementHeat() < 10)
+					if(gc.canMove(id, d)){
+						gc.moveRobot(id, d);
+						props.movesInStartDirection++;
+					}
+			}
+		}
+	}
 
 	public static void healerStep(Unit unit) {
-		// TODO Auto-generated method stub
-		DefaultUnitController.healerStep(unit);
+		if(!unit.location().isOnMap())
+			return;
+		meshStep(unit);
 	}
 
 	public static void knightStep(Unit unit) {
 		if(!unit.location().isOnMap())
 			return;
-		int numRockets = Player.numberOfUnitType(UnitType.Rocket);
-		if(numRockets > 0){
-			Unit rocket = getBestRocket(unit);
-			if(rocket != null){
-				if(gc.canLoad(rocket.id(), unit.id())){
-					gc.load(rocket.id(), unit.id());
-				}else{
-					if(unit.movementHeat() < 10)
-						UnitPathfinding.moveUnitTowardLocation(unit, rocket.location().mapLocation());
-				}
+		meshStep(unit);
+		VecUnit enemies = gc.senseNearbyUnits(unit.location().mapLocation(), (long)Math.floor(Math.sqrt(unit.attackRange())));
+		if(unit.attackHeat() < 10)
+			for(int i = 0; i < enemies.size(); i++){
+				Unit enemy = enemies.get(i);
+				if(!enemy.team().equals(gc.team()))
+					if(gc.canAttack(unit.id(), enemy.id())){
+						gc.attack(unit.id(), enemy.id());
+						break;
+					}
 			}
-		}else{
-			VecUnit enemies = gc.senseNearbyUnits(unit.location().mapLocation(), (long)Math.floor(Math.sqrt(unit.attackRange())));
-			boolean attacked = false;
-			if(unit.attackHeat() < 10)
-				for(int i = 0; i < enemies.size(); i++){
-					Unit enemy = enemies.get(i);
-					if(!enemy.team().equals(gc.team()))
-						if(gc.canAttack(unit.id(), enemy.id())){
-							gc.attack(unit.id(), enemy.id());
-							attacked = true;
-							break;
-						}
-				}
-			if(!attacked && Math.random() < .3){
-				Direction direction = UnitPathfinding.firstAvailableDirection(unit);
-				if(unit.movementHeat() == 0 && gc.canMove(unit.id(), direction))
-					gc.moveRobot(unit.id(), direction);
-			}
-		}
 	}
 
 	public static void mageStep(Unit unit) {
-		// TODO Auto-generated method stub
-		DefaultUnitController.mageStep(unit);
+		if(!unit.location().isOnMap())
+			return;
+		meshStep(unit);
 	}
 
 	public static void rangerStep(Unit unit) {
-		// TODO Auto-generated method stub
-		DefaultUnitController.rangerStep(unit);
+		if(!unit.location().isOnMap())
+			return;
+		meshStep(unit);
 	}
 
 	public static void rocketStep(Unit unit) {
@@ -232,7 +244,6 @@ public class EarthUnitController extends DefaultUnitController {
 					if(gc.startingMap(gc.planet()).onMap(newSpot))
 						if(gc.startingMap(gc.planet()).isPassableTerrainAt(newSpot) == 1 && !gc.hasUnitAtLocation(newSpot)){
 							if (unitLocation.distanceSquaredTo(newSpot) <= 2) {
-								System.out.println("old: " + source + ", new: " + newSpot);
 								if(gc.canBlueprint(unit.id(), UnitType.Factory, unitLocation.directionTo(newSpot))){
 									gc.blueprint(unit.id(), UnitType.Factory, unitLocation.directionTo(newSpot));
 									UnitProps props = UnitProps.props.get(unit.id());

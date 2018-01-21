@@ -337,4 +337,14 @@ public class UnitPathfinding {
 			}
 		return Direction.Center;
 	}
+	
+	public static Direction firstAvailableDiagMoveDirection(Unit unit) {
+		Direction[] orthDirections = {Direction.Northwest, Direction.Northeast, Direction.Southeast, Direction.Southwest};
+		if(unit.location().isOnMap())
+			for (int i = 0; i < orthDirections.length; i++) {
+				if (gc.canMove(unit.id(), orthDirections[i]))
+					return orthDirections[i];
+			}
+		return Direction.Center;
+	}
 }
