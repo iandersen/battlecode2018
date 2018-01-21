@@ -43,7 +43,7 @@ public class EarthUnitController extends DefaultUnitController {
 		// TODO Auto-generated method stub
 		// if there is something in the garrison, and there is space to unload, unload
 		// else if there is available karbonite, choose a robot to create
-		int numKnights = Player.numberOfUnitType(UnitType.Knight);
+		int numKnights = Player.numberOfUnitType(UnitType.Ranger);
 		if (unit.structureIsBuilt()==1) {
 			//System.out.println("Garrison size: " + unit.structureGarrison().size());
 			//System.out.println("Unload direction: " + UnitPathfinding.firstAvailableUnloadDirection(unit));
@@ -57,16 +57,14 @@ public class EarthUnitController extends DefaultUnitController {
 				}
 				
 				else if(numKnights < NUM_KNIGHTS){
-					int random = (int)Math.floor(Math.random()*2);
-					random = 1;
-					if (random == 1) {
-						//System.out.println("Producing Knight");
-						gc.produceRobot(unit.id(), UnitType.Knight);
+					int random = (int)Math.floor(Math.random()*4);
+					switch(random) {
+					case(3) : gc.produceRobot(unit.id(), UnitType.Ranger); break;
+					case(2) : gc.produceRobot(unit.id(), UnitType.Knight); break;
+					case(1) : gc.produceRobot(unit.id(), UnitType.Ranger); break;
 					}
-					else {
-						//System.out.println("Producing Ranger");
-						gc.produceRobot(unit.id(), UnitType.Ranger);
-					}
+
+					
 					
 				}
 			}
