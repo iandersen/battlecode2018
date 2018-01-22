@@ -170,6 +170,64 @@ public class EarthUnitController extends DefaultUnitController {
 		if (!unit.location().isOnMap())
 			return;
 		meshStep(unit);
+		/*
+		int earthWidth = (int)gc.startingMap(Planet.Earth).getWidth();
+		int earthHeight = (int)gc.startingMap(Planet.Earth).getHeight();
+		for(int i = unit.location().mapLocation().getX(); i > 0 && i < earthWidth; i++) {
+			for (int j = unit.location().mapLocation().getY(); j > 0 && j < earthHeight;j++) {
+				
+			}
+		}
+		*/
+		ArrayList<MapLocation> list = new ArrayList<>();
+		VecUnit enemies = gc.senseNearbyUnits(unit.location().mapLocation(),
+				(long) Math.floor(Math.sqrt(unit.attackRange())));
+		if (unit.attackHeat() < 10) {
+			for (int i = 0; i < enemies.size(); i++) {
+				Unit enemy = enemies.get(i);
+				if (!enemy.team().equals(gc.team()))
+					if (gc.canAttack(unit.id(), enemy.id())) {
+						// keep track
+						list.add(enemy.location().mapLocation());
+					}
+			}
+			gc.attack(unit.id(), gc.senseUnitAtLocation(nearby(list)).id());
+		}
+		
+	}
+	
+	public static MapLocation nearby(ArrayList<MapLocation> list) {
+		// return the best square
+		int[] cation = new int[list.size()];
+		for (int number : cation) {
+			number = 0;
+		}
+		int i = 0;
+		for(MapLocation place : list) {
+			for(MapLocation other : list) {
+				if (place.getX() == other.getX() && place.getY() == other.getY() + 1 
+						|| place.getX() == other.getX() && place.getY() == other.getY() - 1
+						|| place.getX() == other.getX() + 1 && place.getY() == other.getY()
+						|| place.getX() == other.getX() - 1 && place.getY() == other.getY()
+						|| place.getX() == other.getX() + 1 && place.getY() == other.getY() - 1
+						|| place.getX() == other.getX() + 1 && place.getY() == other.getY() + 1
+						|| place.getX() == other.getX() - 1 && place.getY() == other.getY() - 1
+						|| place.getX() == other.getX() - 1 && place.getY() == other.getY() + 1) {
+					cation[i]++;
+				}
+				i++;
+			}
+		}
+		// search for max
+		int max = cation[0];
+		int tar = 0;
+		for (int k = 1; k < list.size(); k++) {
+			if (cation[k] > max) {
+				max = cation[k];
+				tar = k;
+			}
+		}
+		return list.get(tar);
 	}
 
 	public static void rangerStep(Unit unit) {
