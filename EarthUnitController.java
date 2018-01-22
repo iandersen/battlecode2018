@@ -23,7 +23,7 @@ public class EarthUnitController extends DefaultUnitController {
 	private static final int WORKER_REPLICATE_COST = 15;
 	private static final int NUM_WORKERS = 8;
 	private static final int NUM_FACTORIES = 25;
-	private static final int NUM_ROCKETS = 3;
+	private static final int NUM_ROCKETS = 100;
 	private static final int NUM_KNIGHTS = 300;
 	private static final int MINE_TURNS = 50;
 	private static final int KARBONITE_MIN = 0;
@@ -261,6 +261,8 @@ public class EarthUnitController extends DefaultUnitController {
 			return;
 		Object[] keys = allEnemies.keySet().toArray();
 		if (unit.attackHeat() < 10) {
+			long minHealth = Long.MAX_VALUE;
+			Unit bestUnit = null;
 			for (int i = 0; i < allEnemies.size(); i++) {
 				int id = (int) keys[i];
 				Unit enemy = allEnemies.get(id);
@@ -268,10 +270,15 @@ public class EarthUnitController extends DefaultUnitController {
 				if (dist <= unit.attackRange())
 					if (dist > unit.rangerCannotAttackRange()) {
 						if (gc.canAttack(unit.id(), enemy.id())) {
-							gc.attack(unit.id(), enemy.id());
-							break;
+							if(enemy.health() < minHealth){
+								minHealth = enemy.health();
+								bestUnit = enemy;
+							}
 						}
 					}
+			}
+			if(bestUnit != null){
+				gc.attack(unit.id(), bestUnit.id());
 			}
 		}
 		meshStep(unit);
@@ -307,47 +314,48 @@ public class EarthUnitController extends DefaultUnitController {
 	}
 
 	public static void workerStep(Unit unit) {
+		if (!unit.location().isOnMap())
+			return;
 		int numWorkers = Player.numberOfUnitType(UnitType.Worker);
 		int numFactories = Player.numberOfUnitType(UnitType.Factory);
 		int numRockets = Player.numberOfUnitType(UnitType.Rocket);
-		boolean stayByFactory = !((UnitProps.props.get(unit.id()) == null
-				|| !UnitProps.props.get(unit.id()).hasBuiltFactory) && numFactories < NUM_FACTORIES);
 		Unit structure = getUnfinishedStructure();
-		if (!unit.location().isOnMap())
-			return;
-		MapLocation loc = unit.location().mapLocation();
-		stayByFactory = false;
-		if (stayByFactory) {
-			// Unit factoryToStickTo =
-			// UnitProps.props.get(unit.id()).factoryToStickTo;
-			// if(factoryToStickTo != null){
-			// Direction d =
-			// UnitPathfinding.firstAvailableDiagDirection(factoryToStickTo);
-			// MapLocation newLoc =
-			// factoryToStickTo.location().mapLocation().add(d);
-			// if(loc.distanceSquaredTo(newLoc) > 0){
-			// if(unit.movementHeat() < 10)
-			// gc.moveRobot(unit.id(), loc.directionTo(newLoc));
-			// }
-			// }
-		} else if (unit.abilityHeat() < 10 && gc.karbonite() >= WORKER_REPLICATE_COST && numWorkers < NUM_WORKERS
-				&& !UnitPathfinding.firstAvailableDirection(unit).equals(Direction.Center)) {
-			workerReplicate(unit);
-		} else if (structure != null
-				&& (loc.distanceSquaredTo(structure.location().mapLocation()) <= 2 || unit.movementHeat() < 10)) {
-			workerBuildFactory(unit, structure);
-		} else if ((gc.round() < MINE_TURNS || gc.karbonite() < KARBONITE_MIN) && totalKarbonite > 50) {
-			workerMine(unit);
-		} else if (structure == null && numFactories < NUM_FACTORIES
-				&& !UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Factory).equals(Direction.Center)) {
-			workerBlueprintFactory(unit);
-		} else if (gc.researchInfo().getLevel(UnitType.Rocket) > 0 && structure == null && numRockets < NUM_ROCKETS
-				&& !UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Rocket).equals(Direction.Center)) {
-			workerBlueprintRocket(unit);
-		} else if (totalKarbonite > 0) {
-			workerMine(unit);
+		if(gc.round() < 150){
+			MapLocation loc = unit.location().mapLocation();
+			if (unit.abilityHeat() < 10 && gc.karbonite() >= WORKER_REPLICATE_COST && numWorkers < NUM_WORKERS
+					&& !UnitPathfinding.firstAvailableDirection(unit).equals(Direction.Center)) {
+				workerReplicate(unit);
+			} else if (structure != null
+					&& (loc.distanceSquaredTo(structure.location().mapLocation()) <= 2 || unit.movementHeat() < 10)) {
+				workerBuildFactory(unit, structure);
+			} else if ((gc.round() < MINE_TURNS || gc.karbonite() < KARBONITE_MIN) && totalKarbonite > 50) {
+				workerMine(unit);
+			} else if (structure == null && numFactories < NUM_FACTORIES
+					&& !UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Factory).equals(Direction.Center)) {
+				workerBlueprintFactory(unit);
+			} else if (gc.researchInfo().getLevel(UnitType.Rocket) > 0 && structure == null && numRockets < NUM_ROCKETS
+					&& !UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Rocket).equals(Direction.Center)) {
+				workerBlueprintRocket(unit);
+			} else if (totalKarbonite > 0) {
+				workerMine(unit);
+			}
+		}else{
+			System.out.println(UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Factory).equals(Direction.Center));
+			if(structure != null){
+				MapLocation loc = unit.location().mapLocation();
+				if(loc.distanceSquaredTo(structure.location().mapLocation()) <= 2 || unit.movementHeat() < 10) {
+					workerBuildFactory(unit, structure);
+				}
+			} else if (structure == null && numFactories < NUM_FACTORIES
+					&& !UnitPathfinding.firstAvailableDirection(unit).equals(Direction.Center)) {
+				workerBlueprintFactory(unit);
+			} else if (gc.researchInfo().getLevel(UnitType.Rocket) > 0 && structure == null && numRockets < NUM_ROCKETS
+					&& !UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Rocket).equals(Direction.Center)) {
+				System.out.println("rocket");
+			} else{
+				meshStep(unit);
+			}
 		}
-
 	}
 
 	private static void workerReplicate(Unit unit) {
@@ -370,6 +378,7 @@ public class EarthUnitController extends DefaultUnitController {
 	}
 
 	private static void workerBlueprintFactory(Unit unit) {
+		System.out.println("BLUEPRINTTTT");
 		int numFactories = Player.numberOfUnitType(UnitType.Factory);
 		MapLocation unitLocation = unit.location().mapLocation();
 		if (numFactories == 0) {
