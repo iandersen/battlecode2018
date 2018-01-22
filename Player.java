@@ -23,11 +23,23 @@ public class Player {
 
 		// Connect to the manager, starting the game
 		gc = new GameController();
-		researchTrees.push(UnitType.Rocket);
-		researchTrees.push(UnitType.Knight);
-		researchTrees.push(UnitType.Knight);
-		researchTrees.push(UnitType.Knight);
-		researchTrees.push(UnitType.Rocket);
+		gc.queueResearch(UnitType.Rocket);
+		gc.queueResearch(UnitType.Knight);
+		gc.queueResearch(UnitType.Ranger);
+		gc.queueResearch(UnitType.Ranger);
+		gc.queueResearch(UnitType.Mage);
+		gc.queueResearch(UnitType.Mage);
+		gc.queueResearch(UnitType.Healer);
+		gc.queueResearch(UnitType.Knight);
+		gc.queueResearch(UnitType.Mage);
+		gc.queueResearch(UnitType.Knight);
+		gc.queueResearch(UnitType.Healer);
+		gc.queueResearch(UnitType.Healer);
+		gc.queueResearch(UnitType.Ranger);
+		gc.queueResearch(UnitType.Worker);
+		gc.queueResearch(UnitType.Worker);
+		gc.queueResearch(UnitType.Worker);
+		gc.queueResearch(UnitType.Worker);
 		
 		while (true) {
 			EarthUnitController.init();
@@ -44,11 +56,6 @@ public class Player {
 
 	public static void earthTurn() {
 		VecUnit units = gc.myUnits();
-		
-		ResearchInfo info = gc.researchInfo();
-		if(info.queue().size() == 0){
-			gc.queueResearch(UnitType.Rocket);
-		}
 		for (int i = 0; i < units.size(); i++) {
 			Unit unit = units.get(i);
 			switch (unit.unitType()) {

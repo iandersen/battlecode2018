@@ -1,8 +1,10 @@
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import bc.GameController;
 import bc.MapLocation;
@@ -10,6 +12,7 @@ import bc.Unit;
 import bc.Direction;
 import bc.Planet;
 import bc.PlanetMap;
+import bc.Team;
 import bc.UnitType;
 import bc.VecUnit;
 
@@ -19,17 +22,19 @@ public class EarthUnitController extends DefaultUnitController {
 	private static GameController gc = Player.gc;
 	private static final int WORKER_REPLICATE_COST = 15;
 	private static final int NUM_WORKERS = 8;
-	private static final int NUM_FACTORIES = 100;
-	private static final int NUM_ROCKETS = 1;
+	private static final int NUM_FACTORIES = 25;
+	private static final int NUM_ROCKETS = 3;
 	private static final int NUM_KNIGHTS = 300;
 	private static final int MINE_TURNS = 50;
-	private static final int KARBONITE_MIN = 300;
+	private static final int KARBONITE_MIN = 0;
+	public static HashMap<Integer, Unit> allEnemies = new HashMap<Integer, Unit>();
 	static Map<Integer, UnitProps> allUnitProps = new HashMap<Integer, UnitProps>();
 	static long[][] karboniteCount;
 	static boolean initialized = false;
 	private static int totalKarbonite = 1000;
 
 	public static void init() {
+		updateEnemyList();
 		if (!initialized && gc.planet().equals(Planet.Earth)) {
 			PlanetMap map = gc.startingMap(gc.planet());
 			if (map != null) {
@@ -40,6 +45,20 @@ public class EarthUnitController extends DefaultUnitController {
 						karboniteCount[x][y] = map.initialKarboniteAt(loc);
 					}
 				initialized = true;
+			}
+		}
+	}
+	
+	public static void updateEnemyList(){
+		allEnemies.clear();
+		VecUnit myUnits = gc.myUnits();
+		Team enemyTeam = gc.team().equals(Team.Blue) ? Team.Red : Team.Blue;
+		for(int i = 0; i < myUnits.size(); i++){
+			Unit u = myUnits.get(i);
+			if(u.location().isOnMap()){
+				VecUnit enemies = gc.senseNearbyUnitsByTeam(u.location().mapLocation(), u.visionRange(), enemyTeam);
+				for(int n = 0; n < enemies.size(); n++)
+					allEnemies.put(enemies.get(n).id(), enemies.get(n));
 			}
 		}
 	}
@@ -59,10 +78,8 @@ public class EarthUnitController extends DefaultUnitController {
 				// choose a robot to create
 				if (Player.numberOfUnitType(UnitType.Worker) < NUM_WORKERS) {
 					gc.produceRobot(unit.id(), UnitType.Worker);
-				}
-
-				else {
-					if (factoryList.get(unit.id()) == createRobotList.length - 2) {
+				} else if(factoryList != null){
+					if (factoryList.get(unit.id()) == null || factoryList.get(unit.id()) == createRobotList.length - 2) {
 						factoryList.put(unit.id(), -1);
 					}
 					factoryList.put(unit.id(), factoryList.get(unit.id()) + 1);
@@ -74,10 +91,10 @@ public class EarthUnitController extends DefaultUnitController {
 						gc.produceRobot(unit.id(), UnitType.Ranger);
 						break;
 					case (4):
-						gc.produceRobot(unit.id(), UnitType.Mage);
+						gc.produceRobot(unit.id(), UnitType.Ranger);
 						break;
 					case (5):
-						gc.produceRobot(unit.id(), UnitType.Healer);
+						gc.produceRobot(unit.id(), UnitType.Worker);
 						break;
 					}
 
@@ -89,27 +106,39 @@ public class EarthUnitController extends DefaultUnitController {
 	public static void meshStep(Unit unit) {
 		if (!unit.location().isOnMap())
 			return;
-		int id = unit.id();
-		UnitProps props = UnitProps.get(id);
-		if (props.movesInStartDirection == 0) {
-			Direction d = UnitPathfinding.firstAvailableDiagMoveDirection(unit);
-			MapLocation loc = unit.location().mapLocation();
-			if (d.equals(Direction.Center)) {
-				Direction[] ds = { Direction.Northwest, Direction.Northeast, Direction.Southeast, Direction.Southwest };
-				for (Direction x : ds) {
-					MapLocation newLoc = loc.add(x);
-					if (gc.hasUnitAtLocation(newLoc)) {
-						Unit u = gc.senseUnitAtLocation(newLoc);
-						UnitProps uProps = UnitProps.get(u.id());
-						uProps.movesInStartDirection = 0;
+		int numRockets = Player.numberOfUnitType(UnitType.Rocket);
+		Unit bestRocket = getBestRocket(unit);
+		if(numRockets > 0 && bestRocket != null && gc.canLoad(bestRocket.id(), unit.id())){
+			VecUnit neighbors = gc.senseNearbyUnitsByTeam(unit.location().mapLocation(), 2, gc.team());
+			for(int i = 0; i < neighbors.size(); i++){
+				int id = neighbors.get(i).id();
+				UnitProps props = UnitProps.get(id);
+				props.movesInStartDirection = 0;
+			}
+			gc.load(bestRocket.id(), unit.id());
+		}else{
+			int id = unit.id();
+			UnitProps props = UnitProps.get(id);
+			if (props.movesInStartDirection == 0) {
+				Direction d = UnitPathfinding.firstAvailableDiagMoveDirection(unit);
+				MapLocation loc = unit.location().mapLocation();
+				if (d.equals(Direction.Center)) {
+					Direction[] ds = { Direction.Northwest, Direction.Northeast, Direction.Southeast, Direction.Southwest };
+					for (Direction x : ds) {
+						MapLocation newLoc = loc.add(x);
+						if (gc.hasUnitAtLocation(newLoc)) {
+							Unit u = gc.senseUnitAtLocation(newLoc);
+							UnitProps uProps = UnitProps.get(u.id());
+							uProps.movesInStartDirection = 0;
+						}
 					}
+				} else {
+					if (unit.movementHeat() < 10)
+						if (gc.canMove(id, d)) {
+							gc.moveRobot(id, d);
+							props.movesInStartDirection++;
+						}
 				}
-			} else {
-				if (unit.movementHeat() < 10)
-					if (gc.canMove(id, d)) {
-						gc.moveRobot(id, d);
-						props.movesInStartDirection++;
-					}
 			}
 		}
 	}
@@ -123,7 +152,6 @@ public class EarthUnitController extends DefaultUnitController {
 	public static void knightStep(Unit unit) {
 		if (!unit.location().isOnMap())
 			return;
-		meshStep(unit);
 		VecUnit enemies = gc.senseNearbyUnits(unit.location().mapLocation(),
 				(long) Math.floor(Math.sqrt(unit.attackRange())));
 		if (unit.attackHeat() < 10)
@@ -135,6 +163,7 @@ public class EarthUnitController extends DefaultUnitController {
 						break;
 					}
 			}
+		meshStep(unit);
 	}
 
 	public static void mageStep(Unit unit) {
@@ -146,6 +175,21 @@ public class EarthUnitController extends DefaultUnitController {
 	public static void rangerStep(Unit unit) {
 		if (!unit.location().isOnMap())
 			return;
+		Object[] keys = allEnemies.keySet().toArray();
+		if (unit.attackHeat() < 10){
+			for (int i = 0; i < allEnemies.size(); i++) {
+				int id = (int) keys[i];
+				Unit enemy = allEnemies.get(id);
+				long dist = unit.location().mapLocation().distanceSquaredTo(enemy.location().mapLocation());
+				if(dist <= unit.attackRange())
+					if(dist > unit.rangerCannotAttackRange()){
+						if (gc.canAttack(unit.id(), enemy.id())) {
+							gc.attack(unit.id(), enemy.id());
+							break;
+						}
+					}
+			}
+		}
 		meshStep(unit);
 	}
 
@@ -232,7 +276,8 @@ public class EarthUnitController extends DefaultUnitController {
 		MapLocation loc = unit.location().mapLocation();
 		if (loc.distanceSquaredTo(structure.location().mapLocation()) <= 2) {
 			int id = structure.id();
-			gc.build(unit.id(), id);
+			if(gc.canBuild(unit.id(), id))
+				gc.build(unit.id(), id);
 		} else if (unit.movementHeat() < 10) {
 			UnitPathfinding.moveUnitTowardLocation(unit, structure.location().mapLocation());
 		} else {
