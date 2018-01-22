@@ -148,7 +148,22 @@ public class EarthUnitController extends DefaultUnitController {
 	public static void healerStep(Unit unit) {
 		if (!unit.location().isOnMap())
 			return;
+		VecUnit friends = gc.senseNearbyUnits(unit.location().mapLocation(),
+				(long) Math.floor(Math.sqrt(unit.attackRange())));
+		if (unit.attackHeat() < 10 && unit.health() > 50)
+			for (int i = 0; i < friends.size(); i++) {
+				Unit friend = friends.get(i);
+				if (friend.team().equals(gc.team()))
+					if (gc.canAttack(unit.id(), friend.id())) {
+						if (friend.health() < 50) {				
+							gc.heal(unit.id(), friend.id());
+							break;
+						}
+						
+					}
+			}
 		meshStep(unit);
+		
 	}
 
 	public static void knightStep(Unit unit) {
@@ -171,7 +186,7 @@ public class EarthUnitController extends DefaultUnitController {
 	public static void mageStep(Unit unit) {
 		if (!unit.location().isOnMap())
 			return;
-		meshStep(unit);
+		
 		/*
 		 * int earthWidth = (int)gc.startingMap(Planet.Earth).getWidth(); int
 		 * earthHeight = (int)gc.startingMap(Planet.Earth).getHeight(); for(int
@@ -197,8 +212,9 @@ public class EarthUnitController extends DefaultUnitController {
 			if (list.size() > 0)
 				gc.attack(unit.id(), gc.senseUnitAtLocation(nearby(list)).id());
 		}
-
+		meshStep(unit);
 	}
+	
 
 	public static MapLocation nearby(ArrayList<MapLocation> list) {
 		// return the best square
