@@ -48,16 +48,16 @@ public class EarthUnitController extends DefaultUnitController {
 			}
 		}
 	}
-	
-	public static void updateEnemyList(){
+
+	public static void updateEnemyList() {
 		allEnemies.clear();
 		VecUnit myUnits = gc.myUnits();
 		Team enemyTeam = gc.team().equals(Team.Blue) ? Team.Red : Team.Blue;
-		for(int i = 0; i < myUnits.size(); i++){
+		for (int i = 0; i < myUnits.size(); i++) {
 			Unit u = myUnits.get(i);
-			if(u.location().isOnMap()){
+			if (u.location().isOnMap()) {
 				VecUnit enemies = gc.senseNearbyUnitsByTeam(u.location().mapLocation(), u.visionRange(), enemyTeam);
-				for(int n = 0; n < enemies.size(); n++)
+				for (int n = 0; n < enemies.size(); n++)
 					allEnemies.put(enemies.get(n).id(), enemies.get(n));
 			}
 		}
@@ -78,14 +78,15 @@ public class EarthUnitController extends DefaultUnitController {
 				// choose a robot to create
 				if (Player.numberOfUnitType(UnitType.Worker) < NUM_WORKERS) {
 					gc.produceRobot(unit.id(), UnitType.Worker);
-				} else if(factoryList != null){
-					if (factoryList.get(unit.id()) == null || factoryList.get(unit.id()) == createRobotList.length - 2) {
+				} else if (factoryList != null) {
+					if (factoryList.get(unit.id()) == null
+							|| factoryList.get(unit.id()) == createRobotList.length - 2) {
 						factoryList.put(unit.id(), -1);
 					}
 					factoryList.put(unit.id(), factoryList.get(unit.id()) + 1);
 					switch (createRobotList[factoryList.get(unit.id())]) {
 					case (2):
-						gc.produceRobot(unit.id(), UnitType.Knight);
+						gc.produceRobot(unit.id(), UnitType.Ranger);
 						break;
 					case (3):
 						gc.produceRobot(unit.id(), UnitType.Ranger);
@@ -94,7 +95,7 @@ public class EarthUnitController extends DefaultUnitController {
 						gc.produceRobot(unit.id(), UnitType.Ranger);
 						break;
 					case (5):
-						gc.produceRobot(unit.id(), UnitType.Worker);
+						gc.produceRobot(unit.id(), UnitType.Ranger);
 						break;
 					}
 
@@ -108,22 +109,23 @@ public class EarthUnitController extends DefaultUnitController {
 			return;
 		int numRockets = Player.numberOfUnitType(UnitType.Rocket);
 		Unit bestRocket = getBestRocket(unit);
-		if(numRockets > 0 && bestRocket != null && gc.canLoad(bestRocket.id(), unit.id())){
+		if (numRockets > 0 && bestRocket != null && gc.canLoad(bestRocket.id(), unit.id())) {
 			VecUnit neighbors = gc.senseNearbyUnitsByTeam(unit.location().mapLocation(), 2, gc.team());
-			for(int i = 0; i < neighbors.size(); i++){
+			for (int i = 0; i < neighbors.size(); i++) {
 				int id = neighbors.get(i).id();
 				UnitProps props = UnitProps.get(id);
 				props.movesInStartDirection = 0;
 			}
 			gc.load(bestRocket.id(), unit.id());
-		}else{
+		} else {
 			int id = unit.id();
 			UnitProps props = UnitProps.get(id);
 			if (props.movesInStartDirection == 0) {
 				Direction d = UnitPathfinding.firstAvailableDiagMoveDirection(unit);
 				MapLocation loc = unit.location().mapLocation();
 				if (d.equals(Direction.Center)) {
-					Direction[] ds = { Direction.Northwest, Direction.Northeast, Direction.Southeast, Direction.Southwest };
+					Direction[] ds = { Direction.Northwest, Direction.Northeast, Direction.Southeast,
+							Direction.Southwest };
 					for (Direction x : ds) {
 						MapLocation newLoc = loc.add(x);
 						if (gc.hasUnitAtLocation(newLoc)) {
@@ -171,52 +173,76 @@ public class EarthUnitController extends DefaultUnitController {
 			return;
 		meshStep(unit);
 		/*
-		int earthWidth = (int)gc.startingMap(Planet.Earth).getWidth();
-		int earthHeight = (int)gc.startingMap(Planet.Earth).getHeight();
-		for(int i = unit.location().mapLocation().getX(); i > 0 && i < earthWidth; i++) {
-			for (int j = unit.location().mapLocation().getY(); j > 0 && j < earthHeight;j++) {
-				
-			}
-		}
-		*/
+		 * int earthWidth = (int)gc.startingMap(Planet.Earth).getWidth(); int
+		 * earthHeight = (int)gc.startingMap(Planet.Earth).getHeight(); for(int
+		 * i = unit.location().mapLocation().getX(); i > 0 && i < earthWidth;
+		 * i++) { for (int j = unit.location().mapLocation().getY(); j > 0 && j
+		 * < earthHeight;j++) {
+		 * 
+		 * } }
+		 */
 		ArrayList<MapLocation> list = new ArrayList<>();
-		VecUnit enemies = gc.senseNearbyUnits(unit.location().mapLocation(),
-				(long) Math.floor(Math.sqrt(unit.attackRange())));
+		
+		Object[] keys = allEnemies.keySet().toArray();
 		if (unit.attackHeat() < 10) {
-			for (int i = 0; i < enemies.size(); i++) {
-				Unit enemy = enemies.get(i);
+			for (int i = 0; i < allEnemies.size(); i++) {
+				int id = (int) keys[i];
+				Unit enemy = allEnemies.get(id);
 				if (!enemy.team().equals(gc.team()))
 					if (gc.canAttack(unit.id(), enemy.id())) {
 						// keep track
 						list.add(enemy.location().mapLocation());
 					}
 			}
-			gc.attack(unit.id(), gc.senseUnitAtLocation(nearby(list)).id());
+			if (list.size() > 0)
+				gc.attack(unit.id(), gc.senseUnitAtLocation(nearby(list)).id());
 		}
-		
+
 	}
-	
+
 	public static MapLocation nearby(ArrayList<MapLocation> list) {
 		// return the best square
 		int[] cation = new int[list.size()];
-		for (int number : cation) {
-			number = 0;
+		for (int i = 0; i < cation.length; i++) {
+			cation[i] = 0;
 		}
 		int i = 0;
-		for(MapLocation place : list) {
-			for(MapLocation other : list) {
-				if (place.getX() == other.getX() && place.getY() == other.getY() + 1 
-						|| place.getX() == other.getX() && place.getY() == other.getY() - 1
-						|| place.getX() == other.getX() + 1 && place.getY() == other.getY()
-						|| place.getX() == other.getX() - 1 && place.getY() == other.getY()
-						|| place.getX() == other.getX() + 1 && place.getY() == other.getY() - 1
-						|| place.getX() == other.getX() + 1 && place.getY() == other.getY() + 1
-						|| place.getX() == other.getX() - 1 && place.getY() == other.getY() - 1
-						|| place.getX() == other.getX() - 1 && place.getY() == other.getY() + 1) {
-					cation[i]++;
+		PlanetMap map = gc.startingMap(gc.planet());
+		Team enemyTeam = gc.team().equals(Team.Blue) ? Team.Red : Team.Blue;
+		for (MapLocation place : list) {
+			Direction[] directions = { Direction.North, Direction.Northeast, Direction.East, Direction.Southeast,
+					Direction.South, Direction.Southwest, Direction.West, Direction.Northwest };
+			for (Direction d : directions) {
+				MapLocation square = place.add(d);
+				if (map.onMap(square)) {
+					if (gc.hasUnitAtLocation(square)) {
+						if (gc.senseUnitAtLocation(square).team().equals(enemyTeam))
+							cation[i]++;
+					}
 				}
-				i++;
 			}
+			i++;
+			// for(MapLocation other : list) {
+			// if (place.getX() == other.getX() && place.getY() == other.getY()
+			// + 1
+			// || place.getX() == other.getX() && place.getY() == other.getY() -
+			// 1
+			// || place.getX() == other.getX() + 1 && place.getY() ==
+			// other.getY()
+			// || place.getX() == other.getX() - 1 && place.getY() ==
+			// other.getY()
+			// || place.getX() == other.getX() + 1 && place.getY() ==
+			// other.getY() - 1
+			// || place.getX() == other.getX() + 1 && place.getY() ==
+			// other.getY() + 1
+			// || place.getX() == other.getX() - 1 && place.getY() ==
+			// other.getY() - 1
+			// || place.getX() == other.getX() - 1 && place.getY() ==
+			// other.getY() + 1) {
+			// cation[i]++;
+			// }
+			// i++;
+			// }
 		}
 		// search for max
 		int max = cation[0];
@@ -234,13 +260,13 @@ public class EarthUnitController extends DefaultUnitController {
 		if (!unit.location().isOnMap())
 			return;
 		Object[] keys = allEnemies.keySet().toArray();
-		if (unit.attackHeat() < 10){
+		if (unit.attackHeat() < 10) {
 			for (int i = 0; i < allEnemies.size(); i++) {
 				int id = (int) keys[i];
 				Unit enemy = allEnemies.get(id);
 				long dist = unit.location().mapLocation().distanceSquaredTo(enemy.location().mapLocation());
-				if(dist <= unit.attackRange())
-					if(dist > unit.rangerCannotAttackRange()){
+				if (dist <= unit.attackRange())
+					if (dist > unit.rangerCannotAttackRange()) {
 						if (gc.canAttack(unit.id(), enemy.id())) {
 							gc.attack(unit.id(), enemy.id());
 							break;
@@ -334,7 +360,7 @@ public class EarthUnitController extends DefaultUnitController {
 		MapLocation loc = unit.location().mapLocation();
 		if (loc.distanceSquaredTo(structure.location().mapLocation()) <= 2) {
 			int id = structure.id();
-			if(gc.canBuild(unit.id(), id))
+			if (gc.canBuild(unit.id(), id))
 				gc.build(unit.id(), id);
 		} else if (unit.movementHeat() < 10) {
 			UnitPathfinding.moveUnitTowardLocation(unit, structure.location().mapLocation());
