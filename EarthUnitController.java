@@ -89,7 +89,7 @@ public class EarthUnitController extends DefaultUnitController {
 						gc.produceRobot(unit.id(), UnitType.Ranger);
 						break;
 					case (3):
-						gc.produceRobot(unit.id(), UnitType.Ranger);
+						gc.produceRobot(unit.id(), UnitType.Healer);
 						break;
 					case (4):
 						gc.produceRobot(unit.id(), UnitType.Ranger);
@@ -363,7 +363,7 @@ public class EarthUnitController extends DefaultUnitController {
 					workerBuildFactory(unit, structure);
 				}
 			} else if (structure == null && numFactories < NUM_FACTORIES
-					&& !UnitPathfinding.firstAvailableDirection(unit).equals(Direction.Center)) {
+					&& !UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Factory).equals(Direction.Center)) {
 				workerBlueprintFactory(unit);
 			} else if (gc.researchInfo().getLevel(UnitType.Rocket) > 0 && structure == null && numRockets < NUM_ROCKETS
 					&& !UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Rocket).equals(Direction.Center)) {
