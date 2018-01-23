@@ -157,6 +157,7 @@ public class EarthUnitController extends DefaultUnitController {
 					if (gc.canAttack(unit.id(), friend.id())) {
 						if (friend.health() < 50) {				
 							gc.heal(unit.id(), friend.id());
+							System.out.println("somebody healed");
 							break;
 						}
 						
