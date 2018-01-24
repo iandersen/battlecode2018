@@ -9,6 +9,7 @@ public class UnitProps {
 	boolean hasBuiltFactory = false;
 	Unit factoryToStickTo = null;
 	int movesInStartDirection = 0;
+	int age = 0;
 	
 	public static UnitProps get(int id){
 		if(props.get(id) == null)

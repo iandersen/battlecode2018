@@ -17,14 +17,16 @@ import bc.UnitType;
 import bc.VecUnit;
 
 public class EarthUnitController extends DefaultUnitController {
-	private static int[] createRobotList = { 2, 2, 3, 3, 3, 4, 5 };
+	private static int[] createRobotList = { 3, 3, 2, 2, 3, 3, 3, 1, 4, 3};
 	private static HashMap<Integer, Integer> factoryList = new HashMap<>();
 	private static GameController gc = Player.gc;
+	private static boolean goAhead = false;
 	private static final int WORKER_REPLICATE_COST = 15;
 	private static final int NUM_WORKERS = 8;
-	private static final int NUM_FACTORIES = 25;
-	private static final int NUM_ROCKETS = 100;
-	private static final int NUM_KNIGHTS = 300;
+	private static int NUM_FACTORIES = 2;
+	private static int NUM_FACTORIES_MAX = 10;
+	private static final int NUM_ROCKETS = 15;
+	private static final int NUM_KNIGHTS = 100;
 	private static final int MINE_TURNS = 50;
 	private static final int KARBONITE_MIN = 0;
 	public static HashMap<Integer, Unit> allEnemies = new HashMap<Integer, Unit>();
@@ -35,6 +37,7 @@ public class EarthUnitController extends DefaultUnitController {
 
 	public static void init() {
 		updateEnemyList();
+		updateUnitAges();
 		if (!initialized && gc.planet().equals(Planet.Earth)) {
 			PlanetMap map = gc.startingMap(gc.planet());
 			if (map != null) {
@@ -46,6 +49,15 @@ public class EarthUnitController extends DefaultUnitController {
 					}
 				initialized = true;
 			}
+		}
+	}
+	
+	public static void updateUnitAges(){
+		VecUnit myUnits = gc.myUnits();
+		for (int i = 0; i < myUnits.size(); i++) {
+			Unit u = myUnits.get(i);
+			UnitProps props = UnitProps.get(u.id());
+			props.age = props.age + 1;
 		}
 	}
 
@@ -64,9 +76,12 @@ public class EarthUnitController extends DefaultUnitController {
 	}
 
 	public static void factoryStep(Unit unit) {
+		boolean beingAttacked = false;
+		if (unit.health() < 70)
+			beingAttacked = true;
 
 		int numKnights = Player.numberOfUnitType(UnitType.Knight);
-		if (unit.structureIsBuilt() == 1) {
+		if (unit.structureIsBuilt() == 1 && gc.karbonite() > 150) {
 			// System.out.println("Garrison size: " +
 			// unit.structureGarrison().size());
 			// System.out.println("Unload direction: " +
@@ -74,25 +89,26 @@ public class EarthUnitController extends DefaultUnitController {
 			if (unit.structureGarrison().size() != 0
 					&& !UnitPathfinding.firstAvailableUnloadDirection(unit).equals(Direction.Center)) {
 				gc.unload(unit.id(), UnitPathfinding.firstAvailableUnloadDirection(unit));
-			} else if (gc.karbonite() > 25 && unit.isFactoryProducing() == 0) {
+			} else if (gc.karbonite() > 25 && unit.isFactoryProducing() == 0 ) {
 				// choose a robot to create
-				if (Player.numberOfUnitType(UnitType.Worker) < NUM_WORKERS) {
-					gc.produceRobot(unit.id(), UnitType.Worker);
-				} else if (factoryList != null) {
+				if (factoryList != null && !goAhead || beingAttacked) {
 					if (factoryList.get(unit.id()) == null
 							|| factoryList.get(unit.id()) == createRobotList.length - 2) {
 						factoryList.put(unit.id(), -1);
 					}
 					factoryList.put(unit.id(), factoryList.get(unit.id()) + 1);
 					switch (createRobotList[factoryList.get(unit.id())]) {
+					case (1):
+						gc.produceRobot(unit.id(), UnitType.Worker);
+						break;
 					case (2):
-						gc.produceRobot(unit.id(), UnitType.Ranger);
+						gc.produceRobot(unit.id(), UnitType.Knight);
 						break;
 					case (3):
-						gc.produceRobot(unit.id(), UnitType.Healer);
+						gc.produceRobot(unit.id(), UnitType.Ranger);
 						break;
 					case (4):
-						gc.produceRobot(unit.id(), UnitType.Ranger);
+						gc.produceRobot(unit.id(), UnitType.Mage);
 						break;
 					case (5):
 						gc.produceRobot(unit.id(), UnitType.Ranger);
@@ -154,10 +170,9 @@ public class EarthUnitController extends DefaultUnitController {
 			for (int i = 0; i < friends.size(); i++) {
 				Unit friend = friends.get(i);
 				if (friend.team().equals(gc.team()))
-					if (gc.canAttack(unit.id(), friend.id())) {
+					if (gc.canHeal(unit.id(), friend.id())) {
 						if (friend.health() < 50) {				
 							gc.heal(unit.id(), friend.id());
-							System.out.println("somebody healed");
 							break;
 						}
 						
@@ -188,15 +203,6 @@ public class EarthUnitController extends DefaultUnitController {
 		if (!unit.location().isOnMap())
 			return;
 		
-		/*
-		 * int earthWidth = (int)gc.startingMap(Planet.Earth).getWidth(); int
-		 * earthHeight = (int)gc.startingMap(Planet.Earth).getHeight(); for(int
-		 * i = unit.location().mapLocation().getX(); i > 0 && i < earthWidth;
-		 * i++) { for (int j = unit.location().mapLocation().getY(); j > 0 && j
-		 * < earthHeight;j++) {
-		 * 
-		 * } }
-		 */
 		ArrayList<MapLocation> list = new ArrayList<>();
 		
 		Object[] keys = allEnemies.keySet().toArray();
@@ -239,27 +245,7 @@ public class EarthUnitController extends DefaultUnitController {
 				}
 			}
 			i++;
-			// for(MapLocation other : list) {
-			// if (place.getX() == other.getX() && place.getY() == other.getY()
-			// + 1
-			// || place.getX() == other.getX() && place.getY() == other.getY() -
-			// 1
-			// || place.getX() == other.getX() + 1 && place.getY() ==
-			// other.getY()
-			// || place.getX() == other.getX() - 1 && place.getY() ==
-			// other.getY()
-			// || place.getX() == other.getX() + 1 && place.getY() ==
-			// other.getY() - 1
-			// || place.getX() == other.getX() + 1 && place.getY() ==
-			// other.getY() + 1
-			// || place.getX() == other.getX() - 1 && place.getY() ==
-			// other.getY() - 1
-			// || place.getX() == other.getX() - 1 && place.getY() ==
-			// other.getY() + 1) {
-			// cation[i]++;
-			// }
-			// i++;
-			// }
+		
 		}
 		// search for max
 		int max = cation[0];
@@ -296,6 +282,7 @@ public class EarthUnitController extends DefaultUnitController {
 			}
 			if(bestUnit != null){
 				gc.attack(unit.id(), bestUnit.id());
+				System.out.println("Somebody has been attacked");
 			}
 		}
 		meshStep(unit);
@@ -317,7 +304,7 @@ public class EarthUnitController extends DefaultUnitController {
 				if (gc.canLaunchRocket(unit.id(), new MapLocation(Planet.Mars, x, y)))
 					gc.launchRocket(unit.id(), new MapLocation(Planet.Mars, x, y));
 			}
-			if (unit.health() < 50) {
+			if (unit.health() < 50 || gc.round() > 720) {
 				while (map.isPassableTerrainAt(new MapLocation(Planet.Mars, x, y)) != 1) {
 					x = (int) Math.floor(Math.random() * map.getWidth());
 					y = (int) Math.floor(Math.random() * map.getHeight());
@@ -331,8 +318,18 @@ public class EarthUnitController extends DefaultUnitController {
 	}
 
 	public static void workerStep(Unit unit) {
+		if (Player.numberOfUnitType(UnitType.Ranger) > 2 * NUM_FACTORIES) {
+			if (NUM_FACTORIES != NUM_FACTORIES_MAX) {
+				NUM_FACTORIES++;
+			}
+		}
 		if (!unit.location().isOnMap())
 			return;
+		
+		if (Player.numberOfUnitType(UnitType.Ranger) > Player.numberOfUnitType(UnitType.Rocket) * 15)
+			goAhead = true;
+		else
+			goAhead = false;
 		int numWorkers = Player.numberOfUnitType(UnitType.Worker);
 		int numFactories = Player.numberOfUnitType(UnitType.Factory);
 		int numRockets = Player.numberOfUnitType(UnitType.Rocket);
@@ -351,7 +348,7 @@ public class EarthUnitController extends DefaultUnitController {
 					&& !UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Factory).equals(Direction.Center)) {
 				workerBlueprintFactory(unit);
 			} else if (gc.researchInfo().getLevel(UnitType.Rocket) > 0 && structure == null && numRockets < NUM_ROCKETS
-					&& !UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Rocket).equals(Direction.Center)) {
+					&& !UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Rocket).equals(Direction.Center) && goAhead) {
 				workerBlueprintRocket(unit);
 			} else if (totalKarbonite > 0) {
 				workerMine(unit);
@@ -363,12 +360,11 @@ public class EarthUnitController extends DefaultUnitController {
 				if(loc.distanceSquaredTo(structure.location().mapLocation()) <= 2 || unit.movementHeat() < 10) {
 					workerBuildFactory(unit, structure);
 				}
-			} else if (structure == null && numFactories < NUM_FACTORIES
-					&& !UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Factory).equals(Direction.Center)) {
+			} else if (structure == null && numFactories < NUM_FACTORIES) {
 				workerBlueprintFactory(unit);
 			} else if (gc.researchInfo().getLevel(UnitType.Rocket) > 0 && structure == null && numRockets < NUM_ROCKETS
 					&& !UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Rocket).equals(Direction.Center)) {
-				System.out.println("rocket");
+				gc.blueprint(unit.id(), UnitType.Rocket,UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Rocket) );
 			} else{
 				meshStep(unit);
 			}
@@ -395,23 +391,27 @@ public class EarthUnitController extends DefaultUnitController {
 	}
 
 	private static void workerBlueprintFactory(Unit unit) {
-		System.out.println("BLUEPRINTTTT");
+		System.out.println("Number of factories is " + Player.numberOfUnitType(UnitType.Factory));
 		int numFactories = Player.numberOfUnitType(UnitType.Factory);
 		MapLocation unitLocation = unit.location().mapLocation();
 		if (numFactories == 0) {
 			Direction direction = UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Factory);
 			gc.blueprint(unit.id(), UnitType.Factory, direction);
-		} else {
-			HashMap<Integer, Unit> factories = getAllUnitsByType(UnitType.Factory);
+		} 
+		else {
+			HashMap<Integer, Unit> factories = getAllUnitsByTypeOrderedByAge(UnitType.Factory);
 			List<Integer> orderedKeys = new ArrayList<Integer>();
 			for (int i : factories.keySet())
 				orderedKeys.add(i);
 			Collections.sort(orderedKeys);
+			for (int i : orderedKeys) {
+				System.out.println("key: " + i);
+			}
 			outer: for (int i : orderedKeys) {
 				Unit factory = factories.get(i);
 				MapLocation source = factory.location().mapLocation();
 				Direction[] buildDirections = { Direction.Northwest, Direction.Northeast, Direction.Southeast,
-						Direction.Southwest };
+						Direction.Southwest, Direction.North, Direction.South, Direction.East, Direction.West };
 				int dist = 2;
 				for (Direction d : buildDirections) {
 					MapLocation newSpot = new MapLocation(source.getPlanet(), source.getX(), source.getY());
@@ -427,6 +427,7 @@ public class EarthUnitController extends DefaultUnitController {
 									if (props == null)
 										props = new UnitProps();
 									props.hasBuiltFactory = true;
+									System.out.println("Built factory");
 									UnitProps.props.put(unit.id(), props);
 								}
 							} else if (unit.movementHeat() < 10) {
@@ -446,6 +447,18 @@ public class EarthUnitController extends DefaultUnitController {
 			Unit unit = units.get(i);
 			if (unit.unitType() == type)
 				ret.put(unit.id(), unit);
+		}
+		return ret;
+	}
+	
+	public static HashMap<Integer, Unit> getAllUnitsByTypeOrderedByAge(UnitType type) {
+		HashMap<Integer, Unit> ret = new HashMap<Integer, Unit>();
+		VecUnit units = gc.myUnits();
+		for (int i = 0; i < units.size(); i++) {
+			Unit unit = units.get(i);
+			int age = UnitProps.get(i).age;
+			if (unit.unitType() == type)
+				ret.put(age, unit);
 		}
 		return ret;
 	}
