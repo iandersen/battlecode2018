@@ -11,30 +11,29 @@ import java.util.*;
 /// Stack<MapLocation> stack = x.returnPath(unit.location().mapLocation(), enemy.location.mapLocation());
 public class BattleCodePathfinder {
   // stacks
-  Stack<Node> stack = new Stack<>();
-  Stack<MapLocation> returnable = new Stack<>();
+  static Stack<Node> stack = new Stack<>();
+  static Stack<MapLocation> returnable = new Stack<>();
   // dimensions
-  int height = 5;
-  int width = 5;
+  static int height = 5;
+  static int width = 5;
   // memory
-  HashMap<Pointxy,Integer> log = new HashMap<>();
+  static HashMap<Pointxy,Integer> log = new HashMap<>();
   // start, end
-  Piece piece = new Piece(10,11);
-  Piece anton = new Piece(12,2);
-  int[][] map;
+  static Piece piece;
+  static Piece anton;
+  static int[][] map;
   // counter
-  int c = 1;
+  static int c = 1;
   
   // initialize map
-  BattleCodePathfinder(int[][] map) {
-    
-    width = map.length;
-    height = map[0].length;
-    this.map = map;
-    
+  BattleCodePathfinder() {
   }
   // most important to the user. resets stacks, HashMap, and counter
-  public Stack<MapLocation> returnPath(MapLocation b, MapLocation e) {
+  public static Stack<MapLocation> returnPath(int[][] mapg, MapLocation b, MapLocation e) {
+	  map = mapg;
+	  width = map.length;
+	  height = map[0].length;
+	  
 	  // reinitialize stacks, log and counter
 	  stack = new Stack<>();
 	  returnable = new Stack<>();
@@ -57,7 +56,7 @@ public class BattleCodePathfinder {
 	    return returnable;
 	  }
   // Auxiliary method
-  public void processNodes(Node current) {
+  private static void processNodes(Node current) {
     c++;
     if (c > 499) {
       return;
@@ -84,7 +83,7 @@ public class BattleCodePathfinder {
   }
   
   // classes
-  class Node {
+  static class Node {
     // only for isBeginning
     boolean isBeginning = false;
     // common
@@ -190,7 +189,7 @@ public class BattleCodePathfinder {
       return ordering;
     }
   }
-  class Pointxy implements Comparable<Pointxy> {
+  static class Pointxy implements Comparable<Pointxy> {
 
     int x;
     int y;
@@ -231,7 +230,7 @@ public class BattleCodePathfinder {
           return result;
       }
   }
-  class Piece {
+  static class Piece {
     public int x = 0;
     public int y = 0;
     Piece(int x, int y) {
