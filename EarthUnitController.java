@@ -262,28 +262,12 @@ public class EarthUnitController extends DefaultUnitController {
 			}
 		meshStep(unit);
 	}
-    private static boolean permission = true;
+    
 	public static void mageStep(Unit unit) {
 		if (!unit.location().isOnMap())
 			return;
-		if(paths.get(unit.id()) == null && permission) {
-			 Stack<MapLocation> path = UnitPathfinding.pathToTarget(unit.location().mapLocation(),
-					 new MapLocation(Planet.Earth,1,1));
-			 permission = false;
-		}
-		else if (paths.get(unit.id()) != null) {
-			Stack<MapLocation> path = paths.get(unit.id());
-			if (unit.movementHeat() < 10)
-			if (gc.canMove(unit.id(), UnitPathfinding.moveUnitTowardLocation(unit, path.peek()))) {
-				MapLocation loc = path.peek();
-				path.pop();
-				paths.put(unit.id(), path);
-				gc.moveRobot(unit.id(), UnitPathfinding.moveUnitTowardLocation(unit, loc));
-			}
-			
-			
-		}
-		else {
+		
+		
 			ArrayList<MapLocation> list = new ArrayList<>();
 			
 			Object[] keys = allEnemies.keySet().toArray();
@@ -304,7 +288,7 @@ public class EarthUnitController extends DefaultUnitController {
 		}
 		
 		
-	}
+
 	
 
 	public static MapLocation nearby(ArrayList<MapLocation> list) {
