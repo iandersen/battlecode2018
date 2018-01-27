@@ -5,6 +5,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Stack;
 
 import bc.GameController;
 import bc.MapLocation;
@@ -18,13 +19,14 @@ import bc.VecUnit;
 
 public class EarthUnitController extends DefaultUnitController {
 	private static UnitType[] createRobotList = { UnitType.Ranger, UnitType.Ranger, UnitType.Knight, UnitType.Knight, UnitType.Ranger, UnitType.Ranger, UnitType.Ranger, UnitType.Worker, UnitType.Healer, UnitType.Ranger, UnitType.Ranger};
+	private static HashMap<Integer, Stack<MapLocation>> paths;
+	private static HashMap<Integer, MapLocation> duties;
 	private static int spot = 0;
 	private static HashMap<Integer, Integer> factoryList = new HashMap<>();
 	private static GameController gc = Player.gc;
 	private static final int WORKER_REPLICATE_COST = 15;
 	private static final int NUM_WORKERS = 8;
 	private static int NUM_FACTORIES = 5;
-	
 	private static int NUM_FACTORIES_MAX = 5;
 	private static int desiredRocketcount = 2;
 	private static final int NUM_ROCKETS = 15;
@@ -40,6 +42,8 @@ public class EarthUnitController extends DefaultUnitController {
 	private static final int ROCKET_ROUND = 500;
 	
 	public static void init() {
+		duties = new HashMap<>();
+		paths = new HashMap<>();
 		updateEnemyList();
 		updateUnitAges();
 		///BattleCodePathfinder x = new BattleCodePathfinder(map);
@@ -56,7 +60,7 @@ public class EarthUnitController extends DefaultUnitController {
 			}
 		}
 	}
-	
+
 	public static void updateUnitAges(){
 		VecUnit myUnits = gc.myUnits();
 		for (int i = 0; i < myUnits.size(); i++) {
@@ -82,10 +86,6 @@ public class EarthUnitController extends DefaultUnitController {
 	}
 
 	public static void factoryStep(Unit unit) {
-		boolean beingAttacked = false;
-		if (unit.health() < 70)
-			beingAttacked = true;
-		
 		if (unit.structureIsBuilt() == 1) {
 			//unloading
 			if (unit.structureGarrison().size() != 0
@@ -157,6 +157,99 @@ public class EarthUnitController extends DefaultUnitController {
 		return false;
 	}
 
+	public static boolean checkForDutiesAndActorNot(Unit unit) {
+		System.out.println("I am actually in the method");
+		System.out.println("Duties? " + duties.get(unit.id()) == null );
+		// location can be a rocket
+		// or an enemy robot or factory
+		if (!unit.location().isOnMap())
+			return false;
+		if (unit.unitType() == UnitType.Knight || unit.unitType() == UnitType.Mage) {
+		VecUnit enemies = gc.senseNearbyUnits(unit.location().mapLocation(),
+				(long) Math.floor(Math.sqrt(unit.attackRange())));
+		if (unit.attackHeat() < 10)
+			for (int i = 0; i < enemies.size(); i++) {
+				Unit enemy = enemies.get(i);
+				if (!enemy.team().equals(gc.team()))
+					if (gc.canAttack(unit.id(), enemy.id())) {
+						gc.attack(unit.id(), enemy.id());
+						return true;
+					}
+			}
+		}
+		if (duties.get(unit.id()) == null)
+		  return false;
+		if (paths.get(unit.id()) == null)  {
+			Stack<MapLocation> path = UnitPathfinding.pathToTarget(unit.location().mapLocation(), duties.get(unit.id()));
+			if (unit.movementHeat() < 10 && !path.isEmpty()) {
+					if (path.size() == 0) {
+						duties.put(unit.id(), null); // absolve of duties
+						return false;
+					}
+	 				MapLocation loc = path.peek();
+	 				path.pop();
+	 				if (gc.canMove(unit.id(),unit.location().mapLocation().directionTo(loc) )) {
+	 				 paths.put(unit.id(), path); // update version
+	 				 gc.moveRobot(unit.id(), unit.location().mapLocation().directionTo(loc));
+	 				 return true;
+	 				}
+
+
+			}
+			/// unit is already right next to friend or enemy
+			else if (path.isEmpty()) {
+				duties.put(unit.id(), null); // absolve of duties
+				return false;
+			}
+			/// unit doesn't have a low enough movementHeat
+			else {
+				paths.put(unit.id(),path);
+				return false; // nothing done
+			}
+		}
+		/// already has existing path
+		else {
+
+			Stack<MapLocation> path = paths.get(unit.id());
+			if (unit.movementHeat() < 10 && !path.isEmpty()) {
+				System.out.print("Am I empty? " + path.isEmpty());
+				MapLocation loc = path.peek();
+				path.pop();
+				if (gc.canMove(unit.id(),unit.location().mapLocation().directionTo(loc) )) {
+				 paths.put(unit.id(),path); // save some computation time
+				 gc.moveRobot(unit.id(), unit.location().mapLocation().directionTo(loc));
+				 return true;
+			   }
+				/// perhaps bad path so give it one more try
+			   else {
+				 path = UnitPathfinding.pathToTarget(unit.location().mapLocation(), duties.get(unit.id()));
+				 loc = path.peek();
+				 path.pop();
+				 if (gc.canMove(unit.id(),unit.location().mapLocation().directionTo(loc) )) {
+					 paths.put(unit.id(),path); // save some computation time perhaps
+					 gc.moveRobot(unit.id(), unit.location().mapLocation().directionTo(loc));
+					 return true;
+	 			 }
+				 System.out.println("absolved of duties");
+ 				 duties.put(unit.id(), null);
+				 return false;
+			   }
+			}
+			else if (path.isEmpty()) {
+				// copy of last time
+				System.out.println("absolved of duties");
+				duties.put(unit.id(), null); // absolve of duties
+				return false;
+			}
+			/// need cooldown
+			else {
+				paths.put(unit.id(),path);
+				return false;
+			}
+		}
+	 System.out.println("somehow here");
+		return false;
+	}
 	public static void healerStep(Unit unit) {
 		if (!unit.location().isOnMap())
 			return;
@@ -167,57 +260,58 @@ public class EarthUnitController extends DefaultUnitController {
 				Unit friend = friends.get(i);
 				if (friend.team().equals(gc.team()))
 					if (gc.canHeal(unit.id(), friend.id())) {
-						if (friend.health() < 50) {				
+						if (friend.health() < 50) {
 							gc.heal(unit.id(), friend.id());
 							break;
 						}
-						
-					}
-			}
-		meshStep(unit);
-		
-	}
 
-	public static void knightStep(Unit unit) {
-		if (!unit.location().isOnMap())
-			return;
-		VecUnit enemies = gc.senseNearbyUnits(unit.location().mapLocation(),
-				(long) Math.floor(Math.sqrt(unit.attackRange())));
-		if (unit.attackHeat() < 10)
-			for (int i = 0; i < enemies.size(); i++) {
-				Unit enemy = enemies.get(i);
-				if (!enemy.team().equals(gc.team()))
-					if (gc.canAttack(unit.id(), enemy.id())) {
-						gc.attack(unit.id(), enemy.id());
-						break;
 					}
 			}
 		meshStep(unit);
+
+	}
+  
+	public static void knightStep(Unit unit) {
+
+			if (!unit.location().isOnMap())
+				return;
+			VecUnit enemies = gc.senseNearbyUnits(unit.location().mapLocation(),
+					(long) Math.floor(Math.sqrt(unit.attackRange())));
+			if (unit.attackHeat() < 10)
+				for (int i = 0; i < enemies.size(); i++) {
+					Unit enemy = enemies.get(i);
+					if (!enemy.team().equals(gc.team()))
+						if (gc.canAttack(unit.id(), enemy.id())) {
+							gc.attack(unit.id(), enemy.id());
+							break;
+						}
+				}
+			meshStep(unit);
 	}
 
 	public static void mageStep(Unit unit) {
 		if (!unit.location().isOnMap())
 			return;
-		
-		ArrayList<MapLocation> list = new ArrayList<>();
-		
-		Object[] keys = allEnemies.keySet().toArray();
-		if (unit.attackHeat() < 10) {
-			for (int i = 0; i < allEnemies.size(); i++) {
-				int id = (int) keys[i];
-				Unit enemy = allEnemies.get(id);
-				if (!enemy.team().equals(gc.team()))
-					if (gc.canAttack(unit.id(), enemy.id())) {
-						// keep track
-						list.add(enemy.location().mapLocation());
-					}
+
+
+			ArrayList<MapLocation> list = new ArrayList<>();
+
+			Object[] keys = allEnemies.keySet().toArray();
+			if (unit.attackHeat() < 10) {
+				for (int i = 0; i < allEnemies.size(); i++) {
+					int id = (int) keys[i];
+					Unit enemy = allEnemies.get(id);
+					if (!enemy.team().equals(gc.team()))
+						if (gc.canAttack(unit.id(), enemy.id())) {
+							// keep track
+							list.add(enemy.location().mapLocation());
+						}
+				}
+				if (list.size() > 0)
+					gc.attack(unit.id(), gc.senseUnitAtLocation(nearby(list)).id());
 			}
-			if (list.size() > 0)
-				gc.attack(unit.id(), gc.senseUnitAtLocation(nearby(list)).id());
+			meshStep(unit);
 		}
-		meshStep(unit);
-	}
-	
 
 	public static MapLocation nearby(ArrayList<MapLocation> list) {
 		// return the best square
@@ -241,7 +335,7 @@ public class EarthUnitController extends DefaultUnitController {
 				}
 			}
 			i++;
-		
+
 		}
 		// search for max
 		int max = cation[0];
@@ -272,6 +366,16 @@ public class EarthUnitController extends DefaultUnitController {
 							if(enemy.health() < minHealth){
 								minHealth = enemy.health();
 								bestUnit = enemy;
+							}
+						}
+					}
+				/// if enemy is too close get the knights or mages to attack that square
+				else {
+						HashMap<Integer,Unit> list = getAllUnitsByType(UnitType.Knight);
+						for (Integer id1 : list.keySet()) {
+							if(duties.get(id1) == null) {
+							duties.put(id1, enemy.location().mapLocation());
+							break;
 							}
 						}
 					}
@@ -316,6 +420,10 @@ public class EarthUnitController extends DefaultUnitController {
 	public static void workerStep(Unit unit) {
 		if (!unit.location().isOnMap())
 			return;
+		//UnitProps.get(unit.id()).path;
+
+
+		boolean able = Player.numberOfUnitType(UnitType.Factory) > 2;
 		int numWorkers = Player.numberOfUnitType(UnitType.Worker);
 		int numFactories = Player.numberOfUnitType(UnitType.Factory);
 		boolean buildARocket = gc.round() >= ROCKET_ROUND || allEnemies.size() > myUnitsSize || numFactories >= NUM_FACTORIES;
@@ -335,6 +443,7 @@ public class EarthUnitController extends DefaultUnitController {
 		} else if (totalKarbonite > 0) {
 			workerMine(unit);
 		}
+	
 	}
 
 	private static void workerReplicate(Unit unit) {
@@ -364,7 +473,7 @@ public class EarthUnitController extends DefaultUnitController {
 			Direction direction = UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Factory);
 			if(gc.canBlueprint(unit.id(), UnitType.Factory, direction))
 				gc.blueprint(unit.id(), UnitType.Factory, direction);
-		} 
+		}
 		else {
 			HashMap<Integer, Unit> factories = getAllUnitsByTypeOrderedByAge(UnitType.Factory);
 			List<Integer> orderedKeys = new ArrayList<Integer>();
@@ -417,7 +526,7 @@ public class EarthUnitController extends DefaultUnitController {
 		}
 		return ret;
 	}
-	
+
 	public static HashMap<Integer, Unit> getAllUnitsByTypeOrderedByAge(UnitType type) {
 		HashMap<Integer, Unit> ret = new HashMap<Integer, Unit>();
 		VecUnit units = gc.myUnits();
