@@ -104,6 +104,8 @@ public class EarthUnitController extends DefaultUnitController {
 	public static void meshStep(Unit unit) {
 		if (!unit.location().isOnMap())
 			return;
+		if(checkForDutiesAndActorNot(unit))
+			return;
 		int numRockets = Player.numberOfUnitType(UnitType.Rocket);
 		Unit bestRocket = getBestRocket(unit);
 		if(isAdjacentToFactory(unit.location().mapLocation())){
@@ -118,7 +120,11 @@ public class EarthUnitController extends DefaultUnitController {
 				props.movesInStartDirection = 0;
 			}
 			gc.load(bestRocket.id(), unit.id());
-		} else {
+		} else if(bestRocket != null){
+			int id = unit.id();
+			if(duties.get(id) == null)
+				duties.put(id, bestRocket.location().mapLocation());
+		}else {
 			int id = unit.id();
 			UnitProps props = UnitProps.get(id);
 			if (props.movesInStartDirection <= 0) {
@@ -420,10 +426,6 @@ public class EarthUnitController extends DefaultUnitController {
 	public static void workerStep(Unit unit) {
 		if (!unit.location().isOnMap())
 			return;
-		//UnitProps.get(unit.id()).path;
-
-
-		boolean able = Player.numberOfUnitType(UnitType.Factory) > 2;
 		int numWorkers = Player.numberOfUnitType(UnitType.Worker);
 		int numFactories = Player.numberOfUnitType(UnitType.Factory);
 		boolean buildARocket = gc.round() >= ROCKET_ROUND || allEnemies.size() > myUnitsSize || numFactories >= NUM_FACTORIES;
