@@ -170,20 +170,16 @@ public class EarthUnitController extends DefaultUnitController {
 		if (duties.get(unit.id()) == null)
 		  return false;
 		if (paths.get(unit.id()) == null)  {
-			System.out.println("1111111111111111111111111111");
 			Stack<MapLocation> path = UnitPathfinding.pathToTarget(unit.location().mapLocation(), duties.get(unit.id()));
 			if (unit.movementHeat() < 10 && !path.isEmpty()) {
 				  System.out.println("My path: " + path);
 					if (path.size() == 0) {
-						System.out.println("aaaaaaaaaaaaaaaaaaaaaaaa");
-						System.out.println("absolved of duties");
 						duties.put(unit.id(), null); // absolve of duties
 						return false;
 					}
 	 				MapLocation loc = path.peek();
 	 				path.pop();
 	 				if (gc.canMove(unit.id(),unit.location().mapLocation().directionTo(loc) )) {
-						System.out.println("bbbbbbbbbbbbbbbbbbbbbbbbbbb");
 	 				 paths.put(unit.id(), path); // update version
 	 				 gc.moveRobot(unit.id(), unit.location().mapLocation().directionTo(loc));
 	 				 return true;
@@ -193,14 +189,11 @@ public class EarthUnitController extends DefaultUnitController {
 			}
 			/// unit is already right next to friend or enemy
 			else if (path.isEmpty()) {
-				System.out.println("ccccccccccccccccccccccccccccc");
-				System.out.println("absolved of duties");
 				duties.put(unit.id(), null); // absolve of duties
 				return false;
 			}
 			/// unit doesn't have a low enough movementHeat
 			else {
-				System.out.println("dddddddddddddddddddddddddddddddd");
 				paths.put(unit.id(),path);
 				return false; // nothing done
 			}
