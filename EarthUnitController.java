@@ -17,14 +17,17 @@ import bc.UnitType;
 import bc.VecUnit;
 
 public class EarthUnitController extends DefaultUnitController {
-	private static int[] createRobotList = { 3, 3, 2, 2, 3, 3, 3, 1, 4, 3};
+	private static UnitType[] createRobotList = { UnitType.Ranger, UnitType.Ranger, UnitType.Knight, UnitType.Knight, UnitType.Ranger, UnitType.Ranger, UnitType.Ranger, UnitType.Worker, UnitType.Healer, UnitType.Ranger, UnitType.Ranger};
+	private static int spot = 0;
 	private static HashMap<Integer, Integer> factoryList = new HashMap<>();
 	private static GameController gc = Player.gc;
-	private static boolean goAhead = false;
+	private static boolean timeToBuildaRocket = false;
 	private static final int WORKER_REPLICATE_COST = 15;
 	private static final int NUM_WORKERS = 8;
-	private static int NUM_FACTORIES = 2;
+	private static int NUM_FACTORIES = 3;
+	
 	private static int NUM_FACTORIES_MAX = 10;
+	private static int desiredRocketcount = 2;
 	private static final int NUM_ROCKETS = 15;
 	private static final int NUM_KNIGHTS = 100;
 	private static final int MINE_TURNS = 50;
@@ -38,6 +41,7 @@ public class EarthUnitController extends DefaultUnitController {
 	public static void init() {
 		updateEnemyList();
 		updateUnitAges();
+		///BattleCodePathfinder x = new BattleCodePathfinder(map);
 		if (!initialized && gc.planet().equals(Planet.Earth)) {
 			PlanetMap map = gc.startingMap(gc.planet());
 			if (map != null) {
@@ -76,47 +80,36 @@ public class EarthUnitController extends DefaultUnitController {
 	}
 
 	public static void factoryStep(Unit unit) {
+		 boolean lessThanFactoryCountDesired = false;
+		 if (Player.numberOfUnitType(UnitType.Factory) < NUM_FACTORIES) {
+			 lessThanFactoryCountDesired = true;
+			
+		 }
+		 
+		 
+		 
+		 boolean able = !lessThanFactoryCountDesired && !timeToBuildaRocket;
+		 
 		boolean beingAttacked = false;
 		if (unit.health() < 70)
 			beingAttacked = true;
-
-		int numKnights = Player.numberOfUnitType(UnitType.Knight);
-		if (unit.structureIsBuilt() == 1 && gc.karbonite() > 150) {
-			// System.out.println("Garrison size: " +
-			// unit.structureGarrison().size());
-			// System.out.println("Unload direction: " +
-			// UnitPathfinding.firstAvailableUnloadDirection(unit));
+		
+		if (unit.structureIsBuilt() == 1) {
+			//unloading
 			if (unit.structureGarrison().size() != 0
 					&& !UnitPathfinding.firstAvailableUnloadDirection(unit).equals(Direction.Center)) {
 				gc.unload(unit.id(), UnitPathfinding.firstAvailableUnloadDirection(unit));
-			} else if (gc.karbonite() > 25 && unit.isFactoryProducing() == 0 ) {
-				// choose a robot to create
-				if (factoryList != null && !goAhead || beingAttacked) {
-					if (factoryList.get(unit.id()) == null
-							|| factoryList.get(unit.id()) == createRobotList.length - 2) {
-						factoryList.put(unit.id(), -1);
-					}
-					factoryList.put(unit.id(), factoryList.get(unit.id()) + 1);
-					switch (createRobotList[factoryList.get(unit.id())]) {
-					case (1):
-						gc.produceRobot(unit.id(), UnitType.Worker);
-						break;
-					case (2):
-						gc.produceRobot(unit.id(), UnitType.Knight);
-						break;
-					case (3):
-						gc.produceRobot(unit.id(), UnitType.Ranger);
-						break;
-					case (4):
-						gc.produceRobot(unit.id(), UnitType.Mage);
-						break;
-					case (5):
-						gc.produceRobot(unit.id(), UnitType.Ranger);
-						break;
-					}
-
+			}
+			// building robots only if the minimum factory count has been met
+			else if (able || beingAttacked) {
+				if (gc.karbonite() > 25 && unit.isFactoryProducing() == 0 ) {
+					// choose a robot to create
+					    if(spot == createRobotList.length) 
+					    	spot = 0;
+						gc.produceRobot(unit.id(), createRobotList[spot++]);
 				}
 			}
+			
 		}
 	}
 
@@ -318,18 +311,20 @@ public class EarthUnitController extends DefaultUnitController {
 	}
 
 	public static void workerStep(Unit unit) {
-		if (Player.numberOfUnitType(UnitType.Ranger) > 2 * NUM_FACTORIES) {
-			if (NUM_FACTORIES != NUM_FACTORIES_MAX) {
-				NUM_FACTORIES++;
-			}
-		}
 		if (!unit.location().isOnMap())
 			return;
+		UnitProps.get(unit.id()).path;
 		
-		if (Player.numberOfUnitType(UnitType.Ranger) > Player.numberOfUnitType(UnitType.Rocket) * 15)
-			goAhead = true;
-		else
-			goAhead = false;
+		
+		boolean able = Player.numberOfUnitType(UnitType.Factory) > 2;
+		timeToBuildaRocket = false;
+		if (Player.numberOfUnitType(UnitType.Rocket) < desiredRocketcount ) {
+			timeToBuildaRocket = true;
+		}
+		
+		if (Math.random() * 100 > 95) {
+			timeToBuildaRocket = true;
+		}
 		int numWorkers = Player.numberOfUnitType(UnitType.Worker);
 		int numFactories = Player.numberOfUnitType(UnitType.Factory);
 		int numRockets = Player.numberOfUnitType(UnitType.Rocket);
@@ -348,13 +343,12 @@ public class EarthUnitController extends DefaultUnitController {
 					&& !UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Factory).equals(Direction.Center)) {
 				workerBlueprintFactory(unit);
 			} else if (gc.researchInfo().getLevel(UnitType.Rocket) > 0 && structure == null && numRockets < NUM_ROCKETS
-					&& !UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Rocket).equals(Direction.Center) && goAhead) {
+					&& !UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Rocket).equals(Direction.Center) && timeToBuildaRocket) {
 				workerBlueprintRocket(unit);
 			} else if (totalKarbonite > 0) {
 				workerMine(unit);
 			}
 		}else{
-			System.out.println(UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Factory).equals(Direction.Center));
 			if(structure != null){
 				MapLocation loc = unit.location().mapLocation();
 				if(loc.distanceSquaredTo(structure.location().mapLocation()) <= 2 || unit.movementHeat() < 10) {
@@ -363,10 +357,13 @@ public class EarthUnitController extends DefaultUnitController {
 			} else if (structure == null && numFactories < NUM_FACTORIES) {
 				workerBlueprintFactory(unit);
 			} else if (gc.researchInfo().getLevel(UnitType.Rocket) > 0 && structure == null && numRockets < NUM_ROCKETS
-					&& !UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Rocket).equals(Direction.Center)) {
+					&& !UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Rocket).equals(Direction.Center) && timeToBuildaRocket) {
 				gc.blueprint(unit.id(), UnitType.Rocket,UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Rocket) );
 			} else{
-				meshStep(unit);
+				//if (Player.numberOfUnitType(UnitType.Rocket) > NUM_ROCKETS ) {
+					meshStep(unit);
+				//}
+				
 			}
 		}
 	}

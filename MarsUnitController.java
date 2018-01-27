@@ -65,7 +65,7 @@ public class MarsUnitController {
 			pressOn = true;
 		}
 		
-		VecUnit enemies = gc.senseNearbyUnits(unit.location().mapLocation(), Math.min(unit.attackRange(), Math.min(unit.visionRange(), unit.abilityRange())));
+		VecUnit enemies = gc.senseNearbyUnits(unit.location().mapLocation(),(long) Math.floor(Math.sqrt(unit.attackRange())));
 		boolean attacked = false;
 		if(unit.attackHeat() < 10)
 			for(int i = 0; i < enemies.size(); i++){
@@ -83,6 +83,10 @@ public class MarsUnitController {
 				if (unit.movementHeat() < 10 && pressOn && gc.canMove(unit.id(), directionToOtherSquare(unit, pressON.get(unit.id())))) {
 					gc.moveRobot(unit.id(), directionToOtherSquare(unit, pressON.get(unit.id())));
 					System.out.println("I did something useful");
+					
+					if(enemies.size() == 0) {
+						pressOn = false;
+					}
 				}
 				else {
 				Direction direction = UnitPathfinding.firstAvailableDirection(unit);
