@@ -159,7 +159,6 @@ public class EarthUnitController extends DefaultUnitController {
 		}
 	}
 
-
 	public static boolean checkForDutiesAndActorNot(Unit unit) {
 		System.out.println("I am actually in the method");
 		System.out.println("Duties? " + duties.get(unit.id()) == null );
@@ -167,12 +166,24 @@ public class EarthUnitController extends DefaultUnitController {
 		// or an enemy robot or factory
 		if (!unit.location().isOnMap())
 			return false;
+		if (unit.unitType() == UnitType.Knight || unit.unitType() == UnitType.Mage) {
+		VecUnit enemies = gc.senseNearbyUnits(unit.location().mapLocation(),
+				(long) Math.floor(Math.sqrt(unit.attackRange())));
+		if (unit.attackHeat() < 10)
+			for (int i = 0; i < enemies.size(); i++) {
+				Unit enemy = enemies.get(i);
+				if (!enemy.team().equals(gc.team()))
+					if (gc.canAttack(unit.id(), enemy.id())) {
+						gc.attack(unit.id(), enemy.id());
+						return true;
+					}
+			}
+		}
 		if (duties.get(unit.id()) == null)
 		  return false;
 		if (paths.get(unit.id()) == null)  {
 			Stack<MapLocation> path = UnitPathfinding.pathToTarget(unit.location().mapLocation(), duties.get(unit.id()));
 			if (unit.movementHeat() < 10 && !path.isEmpty()) {
-				  System.out.println("My path: " + path);
 					if (path.size() == 0) {
 						duties.put(unit.id(), null); // absolve of duties
 						return false;
@@ -278,8 +289,6 @@ public class EarthUnitController extends DefaultUnitController {
 						}
 				}
 			meshStep(unit);
-
-
 	}
 
 	public static void mageStep(Unit unit) {
