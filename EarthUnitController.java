@@ -28,7 +28,7 @@ public class EarthUnitController extends DefaultUnitController {
 	private static final int WORKER_REPLICATE_COST = 15;
 	private static final int NUM_WORKERS = 8;
 	private static int NUM_FACTORIES = 3;
-	
+
 	private static int NUM_FACTORIES_MAX = 10;
 	private static int desiredRocketcount = 2;
 	private static final int NUM_ROCKETS = 15;
@@ -60,7 +60,7 @@ public class EarthUnitController extends DefaultUnitController {
 			}
 		}
 	}
-	
+
 	public static void updateUnitAges(){
 		VecUnit myUnits = gc.myUnits();
 		for (int i = 0; i < myUnits.size(); i++) {
@@ -88,17 +88,17 @@ public class EarthUnitController extends DefaultUnitController {
 		 boolean lessThanFactoryCountDesired = false;
 		 if (Player.numberOfUnitType(UnitType.Factory) < NUM_FACTORIES) {
 			 lessThanFactoryCountDesired = true;
-			
+
 		 }
-		 
-		 
-		 
+
+
+
 		 boolean able = !lessThanFactoryCountDesired && !timeToBuildaRocket;
-		 
+
 		boolean beingAttacked = false;
 		if (unit.health() < 70)
 			beingAttacked = true;
-		
+
 		if (unit.structureIsBuilt() == 1) {
 			//unloading
 			if (unit.structureGarrison().size() != 0
@@ -109,12 +109,12 @@ public class EarthUnitController extends DefaultUnitController {
 			else if (able || beingAttacked) {
 				if (gc.karbonite() > 25 && unit.isFactoryProducing() == 0 ) {
 					// choose a robot to create
-					    if(spot == createRobotList.length) 
+					    if(spot == createRobotList.length)
 					    	spot = 0;
 						gc.produceRobot(unit.id(), createRobotList[spot++]);
 				}
 			}
-			
+
 		}
 	}
 
@@ -158,9 +158,11 @@ public class EarthUnitController extends DefaultUnitController {
 			}
 		}
 	}
-	
-	
+
+
 	public static boolean checkForDutiesAndActorNot(Unit unit) {
+		System.out.println("I am actually in the method");
+		System.out.println("Duties? " + duties.get(unit.id()) == null );
 		// location can be a rocket
 		// or an enemy robot or factory
 		if (!unit.location().isOnMap())
@@ -168,32 +170,47 @@ public class EarthUnitController extends DefaultUnitController {
 		if (duties.get(unit.id()) == null)
 		  return false;
 		if (paths.get(unit.id()) == null)  {
+			System.out.println("1111111111111111111111111111");
 			Stack<MapLocation> path = UnitPathfinding.pathToTarget(unit.location().mapLocation(), duties.get(unit.id()));
 			if (unit.movementHeat() < 10 && !path.isEmpty()) {
+				  System.out.println("My path: " + path);
+					if (path.size() == 0) {
+						System.out.println("aaaaaaaaaaaaaaaaaaaaaaaa");
+						System.out.println("absolved of duties");
+						duties.put(unit.id(), null); // absolve of duties
+						return false;
+					}
 	 				MapLocation loc = path.peek();
 	 				path.pop();
 	 				if (gc.canMove(unit.id(),unit.location().mapLocation().directionTo(loc) )) {
+						System.out.println("bbbbbbbbbbbbbbbbbbbbbbbbbbb");
 	 				 paths.put(unit.id(), path); // update version
 	 				 gc.moveRobot(unit.id(), unit.location().mapLocation().directionTo(loc));
 	 				 return true;
 	 				}
-				 
-				/// unit is already right next to friend or enemy
-				else if (path.isEmpty()) {
-					duties.put(unit.id(), null); // absolve of duties
-					return false;
-				}
-				/// unit doesn't have a low enough movementHeat
-				else {
-					paths.put(unit.id(),path);
-					return false; // nothing done
-				}
+
+
+			}
+			/// unit is already right next to friend or enemy
+			else if (path.isEmpty()) {
+				System.out.println("ccccccccccccccccccccccccccccc");
+				System.out.println("absolved of duties");
+				duties.put(unit.id(), null); // absolve of duties
+				return false;
+			}
+			/// unit doesn't have a low enough movementHeat
+			else {
+				System.out.println("dddddddddddddddddddddddddddddddd");
+				paths.put(unit.id(),path);
+				return false; // nothing done
 			}
 		}
 		/// already has existing path
 		else {
+
 			Stack<MapLocation> path = paths.get(unit.id());
 			if (unit.movementHeat() < 10 && !path.isEmpty()) {
+				System.out.print("Am I empty? " + path.isEmpty());
 				MapLocation loc = path.peek();
 				path.pop();
 				if (gc.canMove(unit.id(),unit.location().mapLocation().directionTo(loc) )) {
@@ -211,11 +228,14 @@ public class EarthUnitController extends DefaultUnitController {
 					 gc.moveRobot(unit.id(), unit.location().mapLocation().directionTo(loc));
 					 return true;
 	 			 }
+				 System.out.println("absolved of duties");
+ 				 duties.put(unit.id(), null);
 				 return false;
 			   }
 			}
 			else if (path.isEmpty()) {
 				// copy of last time
+				System.out.println("absolved of duties");
 				duties.put(unit.id(), null); // absolve of duties
 				return false;
 			}
@@ -225,6 +245,7 @@ public class EarthUnitController extends DefaultUnitController {
 				return false;
 			}
 		}
+	 System.out.println("somehow here");
 		return false;
 	}
 	public static void healerStep(Unit unit) {
@@ -237,41 +258,44 @@ public class EarthUnitController extends DefaultUnitController {
 				Unit friend = friends.get(i);
 				if (friend.team().equals(gc.team()))
 					if (gc.canHeal(unit.id(), friend.id())) {
-						if (friend.health() < 50) {				
+						if (friend.health() < 50) {
 							gc.heal(unit.id(), friend.id());
 							break;
 						}
-						
+
 					}
 			}
 		meshStep(unit);
-		
+
+	}
+  static int useless = -1;
+	public static void knightStep(Unit unit) {
+
+			if (!unit.location().isOnMap())
+				return;
+			VecUnit enemies = gc.senseNearbyUnits(unit.location().mapLocation(),
+					(long) Math.floor(Math.sqrt(unit.attackRange())));
+			if (unit.attackHeat() < 10)
+				for (int i = 0; i < enemies.size(); i++) {
+					Unit enemy = enemies.get(i);
+					if (!enemy.team().equals(gc.team()))
+						if (gc.canAttack(unit.id(), enemy.id())) {
+							gc.attack(unit.id(), enemy.id());
+							break;
+						}
+				}
+			meshStep(unit);
+
+
 	}
 
-	public static void knightStep(Unit unit) {
-		if (!unit.location().isOnMap())
-			return;
-		VecUnit enemies = gc.senseNearbyUnits(unit.location().mapLocation(),
-				(long) Math.floor(Math.sqrt(unit.attackRange())));
-		if (unit.attackHeat() < 10)
-			for (int i = 0; i < enemies.size(); i++) {
-				Unit enemy = enemies.get(i);
-				if (!enemy.team().equals(gc.team()))
-					if (gc.canAttack(unit.id(), enemy.id())) {
-						gc.attack(unit.id(), enemy.id());
-						break;
-					}
-			}
-		meshStep(unit);
-	}
-    
 	public static void mageStep(Unit unit) {
 		if (!unit.location().isOnMap())
 			return;
-		
-		
+
+
 			ArrayList<MapLocation> list = new ArrayList<>();
-			
+
 			Object[] keys = allEnemies.keySet().toArray();
 			if (unit.attackHeat() < 10) {
 				for (int i = 0; i < allEnemies.size(); i++) {
@@ -288,10 +312,10 @@ public class EarthUnitController extends DefaultUnitController {
 			}
 			meshStep(unit);
 		}
-		
-		
 
-	
+
+
+
 
 	public static MapLocation nearby(ArrayList<MapLocation> list) {
 		// return the best square
@@ -315,7 +339,7 @@ public class EarthUnitController extends DefaultUnitController {
 				}
 			}
 			i++;
-		
+
 		}
 		// search for max
 		int max = cation[0];
@@ -388,17 +412,26 @@ public class EarthUnitController extends DefaultUnitController {
 	}
 
 	public static void workerStep(Unit unit) {
+		if(useless == -1 || useless == unit.id()) {
+			useless = unit.id();
+			duties.put(unit.id(),new MapLocation(Planet.Earth, 3, 3));
+			checkForDutiesAndActorNot(unit);
+			if(duties.get(unit.id()) == null) {
+				useless = -50;
+			}
+		}
+		else {
 		if (!unit.location().isOnMap())
 			return;
 		//UnitProps.get(unit.id()).path;
-		
-		
+
+
 		boolean able = Player.numberOfUnitType(UnitType.Factory) > 2;
 		timeToBuildaRocket = false;
 		if (Player.numberOfUnitType(UnitType.Rocket) < desiredRocketcount ) {
 			timeToBuildaRocket = true;
 		}
-		
+
 		if (Math.random() * 100 > 95) {
 			timeToBuildaRocket = true;
 		}
@@ -440,9 +473,10 @@ public class EarthUnitController extends DefaultUnitController {
 				//if (Player.numberOfUnitType(UnitType.Rocket) > NUM_ROCKETS ) {
 					meshStep(unit);
 				//}
-				
+
 			}
 		}
+	}
 	}
 
 	private static void workerReplicate(Unit unit) {
@@ -471,7 +505,7 @@ public class EarthUnitController extends DefaultUnitController {
 		if (numFactories == 0) {
 			Direction direction = UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Factory);
 			gc.blueprint(unit.id(), UnitType.Factory, direction);
-		} 
+		}
 		else {
 			HashMap<Integer, Unit> factories = getAllUnitsByTypeOrderedByAge(UnitType.Factory);
 			List<Integer> orderedKeys = new ArrayList<Integer>();
@@ -524,7 +558,7 @@ public class EarthUnitController extends DefaultUnitController {
 		}
 		return ret;
 	}
-	
+
 	public static HashMap<Integer, Unit> getAllUnitsByTypeOrderedByAge(UnitType type) {
 		HashMap<Integer, Unit> ret = new HashMap<Integer, Unit>();
 		VecUnit units = gc.myUnits();
