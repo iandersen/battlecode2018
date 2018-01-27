@@ -261,7 +261,7 @@ public class EarthUnitController extends DefaultUnitController {
 		meshStep(unit);
 
 	}
-  static int useless = -1;
+  
 	public static void knightStep(Unit unit) {
 
 			if (!unit.location().isOnMap())
@@ -305,10 +305,6 @@ public class EarthUnitController extends DefaultUnitController {
 			}
 			meshStep(unit);
 		}
-
-
-
-
 
 	public static MapLocation nearby(ArrayList<MapLocation> list) {
 		// return the best square
@@ -366,6 +362,16 @@ public class EarthUnitController extends DefaultUnitController {
 							}
 						}
 					}
+				/// if enemy is too close get the knights or mages to attack that square
+				else {
+						HashMap<Integer,Unit> list = getAllUnitsByType(UnitType.Knight);
+						for (Integer id1 : list.keySet()) {
+							if(duties.get(id1) == null) {
+							duties.put(id1, enemy.location().mapLocation());
+							break;
+							}
+						}
+					}
 			}
 			if(bestUnit != null){
 				gc.attack(unit.id(), bestUnit.id());
@@ -405,15 +411,6 @@ public class EarthUnitController extends DefaultUnitController {
 	}
 
 	public static void workerStep(Unit unit) {
-		if(useless == -1 || useless == unit.id()) {
-			useless = unit.id();
-			duties.put(unit.id(),new MapLocation(Planet.Earth, 3, 3));
-			checkForDutiesAndActorNot(unit);
-			if(duties.get(unit.id()) == null) {
-				useless = -50;
-			}
-		}
-		else {
 		if (!unit.location().isOnMap())
 			return;
 		//UnitProps.get(unit.id()).path;
@@ -469,7 +466,7 @@ public class EarthUnitController extends DefaultUnitController {
 
 			}
 		}
-	}
+	
 	}
 
 	private static void workerReplicate(Unit unit) {
