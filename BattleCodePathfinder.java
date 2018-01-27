@@ -48,14 +48,21 @@ public class BattleCodePathfinder {
 	  node.isBeginning = true;
     log.put(new Pointxy(node.x, node.y), 100);
 	  stack.push(node);
-
+    map[anton.x][anton.y] = 1;
 	  processNodes(node);
-
-	    Node current = stack.peek();
-	    while(!current.isBeginning) {
-	      returnable.push(new MapLocation(b.getPlanet(), current.x, current.y));
-	      current = current.parent;
-	    }
+      if(!stack.isEmpty()) {
+        Node current = stack.peek();
+        if(stack.size() < 3)
+          return returnable;
+        current = current.parent;
+  	    while(!current.isBeginning) {
+  	      returnable.push(new MapLocation(b.getPlanet(), current.x, current.y));
+  	      current = current.parent;
+  	    }
+      }
+      else {
+        System.out.println("/////////////////////////////////////");
+      }
 	    return returnable;
 	  }
   // Auxiliary method
@@ -69,6 +76,7 @@ public class BattleCodePathfinder {
           current.desvaor();
 
           ArrayList<Node> options = current.findOptions();
+        ///  System.out.println("options: " + options);
           ///////////// options are empty
           if(options.isEmpty() || current.amRotten()) {
             stack.pop();
@@ -143,6 +151,7 @@ public class BattleCodePathfinder {
               if (good[nodes[i].id])
                 return false;
             }
+            ///System.out.println("ROTTEN ????????????????");
             return true;
           }
           // what neighbors I have
@@ -186,8 +195,9 @@ public class BattleCodePathfinder {
               if (
               nodes[i].x > width - 1 || nodes[i].x < 0
               || nodes[i].y > height - 1 || nodes[i].y < 0
-              || map[nodes[i].x][nodes[i].y] != 0
+              || map[nodes[i].x][nodes[i].y] != 1
               || log.get(new Pointxy(nodes[i].x, nodes[i].y)) != null) {
+              //  System.out.println("FOUL " + map[10][4]);
                 good[nodes[i].id] = false;
               }
               else {

@@ -5,6 +5,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Stack;
 
 import bc.GameController;
 import bc.MapLocation;
@@ -18,6 +19,8 @@ import bc.VecUnit;
 
 public class EarthUnitController extends DefaultUnitController {
 	private static UnitType[] createRobotList = { UnitType.Ranger, UnitType.Ranger, UnitType.Knight, UnitType.Knight, UnitType.Ranger, UnitType.Ranger, UnitType.Ranger, UnitType.Worker, UnitType.Healer, UnitType.Ranger, UnitType.Ranger};
+	private static HashMap<Integer, Stack<MapLocation>> paths;
+	private static HashMap<Integer, MapLocation> duties;
 	private static int spot = 0;
 	private static HashMap<Integer, Integer> factoryList = new HashMap<>();
 	private static GameController gc = Player.gc;
@@ -153,7 +156,75 @@ public class EarthUnitController extends DefaultUnitController {
 			}
 		}
 	}
-
+	
+	
+	public static boolean checkForDutiesAndActorNot(Unit unit) {
+		// location can be a rocket
+		// or an enemy robot or factory
+		if (!unit.location().isOnMap())
+			return false;
+		if (duties.get(unit.id()) == null)
+		  return false;
+		if (paths.get(unit.id()) == null)  {
+			Stack<MapLocation> path = UnitPathfinding.pathToTarget(unit.location().mapLocation(), duties.get(unit.id()));
+			if (unit.movementHeat() < 10 && !path.isEmpty()) {
+	 				MapLocation loc = path.peek();
+	 				path.pop();
+	 				if (gc.canMove(unit.id(),unit.location().mapLocation().directionTo(loc) )) {
+	 				 paths.put(unit.id(), path); // update version
+	 				 gc.moveRobot(unit.id(), unit.location().mapLocation().directionTo(loc));
+	 				 return true;
+	 				}
+				 
+				/// unit is already right next to friend or enemy
+				else if (path.isEmpty()) {
+					duties.put(unit.id(), null); // absolve of duties
+					return false;
+				}
+				/// unit doesn't have a low enough movementHeat
+				else {
+					paths.put(unit.id(),path);
+					return false; // nothing done
+				}
+			}
+		}
+		/// already has existing path
+		else {
+			Stack<MapLocation> path = paths.get(unit.id());
+			if (unit.movementHeat() < 10 && !path.isEmpty()) {
+				MapLocation loc = path.peek();
+				path.pop();
+				if (gc.canMove(unit.id(),unit.location().mapLocation().directionTo(loc) )) {
+				 paths.put(unit.id(),path); // save some computation time
+				 gc.moveRobot(unit.id(), unit.location().mapLocation().directionTo(loc));
+				 return true;
+			   }
+				/// perhaps bad path so give it one more try
+			   else {
+				 path = UnitPathfinding.pathToTarget(unit.location().mapLocation(), duties.get(unit.id()));
+				 loc = path.peek();
+				 path.pop();
+				 if (gc.canMove(unit.id(),unit.location().mapLocation().directionTo(loc) )) {
+					 paths.put(unit.id(),path); // save some computation time perhaps
+					 gc.moveRobot(unit.id(), unit.location().mapLocation().directionTo(loc));
+					 return true;
+	 			 }
+				 return false;
+			   }
+			}
+			else if (path.isEmpty()) {
+				// copy of last time
+				duties.put(unit.id(), null); // absolve of duties
+				return false;
+			}
+			/// need cooldown
+			else {
+				paths.put(unit.id(),path);
+				return false;
+			}
+		}
+		return false;
+	}
 	public static void healerStep(Unit unit) {
 		if (!unit.location().isOnMap())
 			return;
@@ -191,28 +262,48 @@ public class EarthUnitController extends DefaultUnitController {
 			}
 		meshStep(unit);
 	}
-
+    private static boolean permission = true;
 	public static void mageStep(Unit unit) {
 		if (!unit.location().isOnMap())
 			return;
-		
-		ArrayList<MapLocation> list = new ArrayList<>();
-		
-		Object[] keys = allEnemies.keySet().toArray();
-		if (unit.attackHeat() < 10) {
-			for (int i = 0; i < allEnemies.size(); i++) {
-				int id = (int) keys[i];
-				Unit enemy = allEnemies.get(id);
-				if (!enemy.team().equals(gc.team()))
-					if (gc.canAttack(unit.id(), enemy.id())) {
-						// keep track
-						list.add(enemy.location().mapLocation());
-					}
-			}
-			if (list.size() > 0)
-				gc.attack(unit.id(), gc.senseUnitAtLocation(nearby(list)).id());
+		if(paths.get(unit.id()) == null && permission) {
+			 Stack<MapLocation> path = UnitPathfinding.pathToTarget(unit.location().mapLocation(),
+					 new MapLocation(Planet.Earth,1,1));
+			 permission = false;
 		}
-		meshStep(unit);
+		else if (paths.get(unit.id()) != null) {
+			Stack<MapLocation> path = paths.get(unit.id());
+			if (unit.movementHeat() < 10)
+			if (gc.canMove(unit.id(), UnitPathfinding.moveUnitTowardLocation(unit, path.peek()))) {
+				MapLocation loc = path.peek();
+				path.pop();
+				paths.put(unit.id(), path);
+				gc.moveRobot(unit.id(), UnitPathfinding.moveUnitTowardLocation(unit, loc));
+			}
+			
+			
+		}
+		else {
+			ArrayList<MapLocation> list = new ArrayList<>();
+			
+			Object[] keys = allEnemies.keySet().toArray();
+			if (unit.attackHeat() < 10) {
+				for (int i = 0; i < allEnemies.size(); i++) {
+					int id = (int) keys[i];
+					Unit enemy = allEnemies.get(id);
+					if (!enemy.team().equals(gc.team()))
+						if (gc.canAttack(unit.id(), enemy.id())) {
+							// keep track
+							list.add(enemy.location().mapLocation());
+						}
+				}
+				if (list.size() > 0)
+					gc.attack(unit.id(), gc.senseUnitAtLocation(nearby(list)).id());
+			}
+			meshStep(unit);
+		}
+		
+		
 	}
 	
 
@@ -313,7 +404,7 @@ public class EarthUnitController extends DefaultUnitController {
 	public static void workerStep(Unit unit) {
 		if (!unit.location().isOnMap())
 			return;
-		UnitProps.get(unit.id()).path;
+		//UnitProps.get(unit.id()).path;
 		
 		
 		boolean able = Player.numberOfUnitType(UnitType.Factory) > 2;

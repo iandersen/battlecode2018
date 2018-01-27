@@ -47,9 +47,9 @@ public class UnitPathfinding {
 							.isPassableTerrainAt(new MapLocation(gc.planet(), x, y));
 			marsInitialized = true;
 		}
-//		refreshUnitPositionsOnMap();
+		refreshUnitPositionsOnMap();
 	}
-
+	
 	private static void refreshUnitPositionsOnMap() {
 		long height = gc.startingMap(gc.planet()).getHeight();
 		long width = gc.startingMap(gc.planet()).getWidth();
@@ -166,6 +166,11 @@ public class UnitPathfinding {
 			}
 			return false;
 		}
+	}
+	
+	public static Stack<MapLocation> pathToTarget(MapLocation b, MapLocation e) {
+		Stack<MapLocation> path = BattleCodePathfinder.returnPath(collisionMap(b.getPlanet()), b, e);
+		return path;
 	}
 	
 	private static void print2dArray(boolean[][] array) {
