@@ -21,12 +21,11 @@ public class EarthUnitController extends DefaultUnitController {
 	private static int spot = 0;
 	private static HashMap<Integer, Integer> factoryList = new HashMap<>();
 	private static GameController gc = Player.gc;
-	private static boolean timeToBuildaRocket = false;
 	private static final int WORKER_REPLICATE_COST = 15;
 	private static final int NUM_WORKERS = 8;
-	private static int NUM_FACTORIES = 3;
+	private static int NUM_FACTORIES = 5;
 	
-	private static int NUM_FACTORIES_MAX = 10;
+	private static int NUM_FACTORIES_MAX = 5;
 	private static int desiredRocketcount = 2;
 	private static final int NUM_ROCKETS = 15;
 	private static final int NUM_KNIGHTS = 100;
@@ -37,7 +36,9 @@ public class EarthUnitController extends DefaultUnitController {
 	static long[][] karboniteCount;
 	static boolean initialized = false;
 	private static int totalKarbonite = 1000;
-
+	private static int myUnitsSize = 0;
+	private static final int ROCKET_ROUND = 500;
+	
 	public static void init() {
 		updateEnemyList();
 		updateUnitAges();
@@ -68,6 +69,7 @@ public class EarthUnitController extends DefaultUnitController {
 	public static void updateEnemyList() {
 		allEnemies.clear();
 		VecUnit myUnits = gc.myUnits();
+		myUnitsSize = (int) myUnits.size();
 		Team enemyTeam = gc.team().equals(Team.Blue) ? Team.Red : Team.Blue;
 		for (int i = 0; i < myUnits.size(); i++) {
 			Unit u = myUnits.get(i);
@@ -80,16 +82,6 @@ public class EarthUnitController extends DefaultUnitController {
 	}
 
 	public static void factoryStep(Unit unit) {
-		 boolean lessThanFactoryCountDesired = false;
-		 if (Player.numberOfUnitType(UnitType.Factory) < NUM_FACTORIES) {
-			 lessThanFactoryCountDesired = true;
-			
-		 }
-		 
-		 
-		 
-		 boolean able = !lessThanFactoryCountDesired && !timeToBuildaRocket;
-		 
 		boolean beingAttacked = false;
 		if (unit.health() < 70)
 			beingAttacked = true;
@@ -101,15 +93,11 @@ public class EarthUnitController extends DefaultUnitController {
 				gc.unload(unit.id(), UnitPathfinding.firstAvailableUnloadDirection(unit));
 			}
 			// building robots only if the minimum factory count has been met
-			else if (able || beingAttacked) {
-				if (gc.karbonite() > 25 && unit.isFactoryProducing() == 0 ) {
-					// choose a robot to create
-					    if(spot == createRobotList.length) 
-					    	spot = 0;
-						gc.produceRobot(unit.id(), createRobotList[spot++]);
-				}
+			if(spot == createRobotList.length) 
+		    	spot = 0;
+			if (gc.canProduceRobot(unit.id(), createRobotList[spot]) ) {
+					gc.produceRobot(unit.id(), createRobotList[spot++]);
 			}
-			
 		}
 	}
 
@@ -118,6 +106,10 @@ public class EarthUnitController extends DefaultUnitController {
 			return;
 		int numRockets = Player.numberOfUnitType(UnitType.Rocket);
 		Unit bestRocket = getBestRocket(unit);
+		if(isAdjacentToFactory(unit.location().mapLocation())){
+			UnitProps uProps = UnitProps.get(unit.id());
+			uProps.movesInStartDirection--;
+		}
 		if (numRockets > 0 && bestRocket != null && gc.canLoad(bestRocket.id(), unit.id())) {
 			VecUnit neighbors = gc.senseNearbyUnitsByTeam(unit.location().mapLocation(), 2, gc.team());
 			for (int i = 0; i < neighbors.size(); i++) {
@@ -129,7 +121,7 @@ public class EarthUnitController extends DefaultUnitController {
 		} else {
 			int id = unit.id();
 			UnitProps props = UnitProps.get(id);
-			if (props.movesInStartDirection == 0) {
+			if (props.movesInStartDirection <= 0) {
 				Direction d = UnitPathfinding.firstAvailableDiagMoveDirection(unit);
 				MapLocation loc = unit.location().mapLocation();
 				if (d.equals(Direction.Center)) {
@@ -137,7 +129,7 @@ public class EarthUnitController extends DefaultUnitController {
 							Direction.Southwest };
 					for (Direction x : ds) {
 						MapLocation newLoc = loc.add(x);
-						if (gc.hasUnitAtLocation(newLoc)) {
+						if (gc.hasUnitAtLocation(newLoc) && !isAdjacentToFactory(newLoc)) {
 							Unit u = gc.senseUnitAtLocation(newLoc);
 							UnitProps uProps = UnitProps.get(u.id());
 							uProps.movesInStartDirection = 0;
@@ -152,6 +144,17 @@ public class EarthUnitController extends DefaultUnitController {
 				}
 			}
 		}
+	}
+	
+	public static boolean isAdjacentToFactory(MapLocation loc){
+		Direction[] ds = { Direction.North, Direction.South, Direction.East,
+				Direction.West };
+		for(Direction d : ds){
+			Unit u = gc.hasUnitAtLocation(loc.add(d)) ? gc.senseUnitAtLocation(loc.add(d)) : null;
+			if(u != null && u.unitType() == UnitType.Factory)
+				return true;
+		}
+		return false;
 	}
 
 	public static void healerStep(Unit unit) {
@@ -313,58 +316,24 @@ public class EarthUnitController extends DefaultUnitController {
 	public static void workerStep(Unit unit) {
 		if (!unit.location().isOnMap())
 			return;
-		UnitProps.get(unit.id()).path;
-		
-		
-		boolean able = Player.numberOfUnitType(UnitType.Factory) > 2;
-		timeToBuildaRocket = false;
-		if (Player.numberOfUnitType(UnitType.Rocket) < desiredRocketcount ) {
-			timeToBuildaRocket = true;
-		}
-		
-		if (Math.random() * 100 > 95) {
-			timeToBuildaRocket = true;
-		}
 		int numWorkers = Player.numberOfUnitType(UnitType.Worker);
 		int numFactories = Player.numberOfUnitType(UnitType.Factory);
-		int numRockets = Player.numberOfUnitType(UnitType.Rocket);
+		boolean buildARocket = gc.round() >= ROCKET_ROUND || allEnemies.size() > myUnitsSize || numFactories >= NUM_FACTORIES;
 		Unit structure = getUnfinishedStructure();
-		if(gc.round() < 150){
-			MapLocation loc = unit.location().mapLocation();
-			if (unit.abilityHeat() < 10 && gc.karbonite() >= WORKER_REPLICATE_COST && numWorkers < NUM_WORKERS
-					&& !UnitPathfinding.firstAvailableDirection(unit).equals(Direction.Center)) {
-				workerReplicate(unit);
-			} else if (structure != null
-					&& (loc.distanceSquaredTo(structure.location().mapLocation()) <= 2 || unit.movementHeat() < 10)) {
-				workerBuildFactory(unit, structure);
-			} else if ((gc.round() < MINE_TURNS || gc.karbonite() < KARBONITE_MIN) && totalKarbonite > 50) {
-				workerMine(unit);
-			} else if (structure == null && numFactories < NUM_FACTORIES
-					&& !UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Factory).equals(Direction.Center)) {
-				workerBlueprintFactory(unit);
-			} else if (gc.researchInfo().getLevel(UnitType.Rocket) > 0 && structure == null && numRockets < NUM_ROCKETS
-					&& !UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Rocket).equals(Direction.Center) && timeToBuildaRocket) {
-				workerBlueprintRocket(unit);
-			} else if (totalKarbonite > 0) {
-				workerMine(unit);
-			}
-		}else{
-			if(structure != null){
-				MapLocation loc = unit.location().mapLocation();
-				if(loc.distanceSquaredTo(structure.location().mapLocation()) <= 2 || unit.movementHeat() < 10) {
-					workerBuildFactory(unit, structure);
-				}
-			} else if (structure == null && numFactories < NUM_FACTORIES) {
-				workerBlueprintFactory(unit);
-			} else if (gc.researchInfo().getLevel(UnitType.Rocket) > 0 && structure == null && numRockets < NUM_ROCKETS
-					&& !UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Rocket).equals(Direction.Center) && timeToBuildaRocket) {
-				gc.blueprint(unit.id(), UnitType.Rocket,UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Rocket) );
-			} else{
-				//if (Player.numberOfUnitType(UnitType.Rocket) > NUM_ROCKETS ) {
-					meshStep(unit);
-				//}
-				
-			}
+		MapLocation loc = unit.location().mapLocation();
+		if (unit.abilityHeat() < 10 && gc.karbonite() >= WORKER_REPLICATE_COST && numWorkers < NUM_WORKERS
+				&& !UnitPathfinding.firstAvailableDirection(unit).equals(Direction.Center)) {
+			workerReplicate(unit);
+		} else if (structure != null
+				&& (loc.distanceSquaredTo(structure.location().mapLocation()) <= 2 || unit.movementHeat() < 10)) {
+			workerBuildFactory(unit, structure);
+		}else if (numFactories < NUM_FACTORIES && !buildARocket) {
+			workerBlueprintFactory(unit);
+		} else if (buildARocket && gc.researchInfo().getLevel(UnitType.Rocket) > 0 && structure == null
+				&& !UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Rocket).equals(Direction.Center)) {
+			workerBlueprintRocket(unit);
+		} else if (totalKarbonite > 0) {
+			workerMine(unit);
 		}
 	}
 
@@ -393,7 +362,8 @@ public class EarthUnitController extends DefaultUnitController {
 		MapLocation unitLocation = unit.location().mapLocation();
 		if (numFactories == 0) {
 			Direction direction = UnitPathfinding.firstAvailableBuildDirection(unit, UnitType.Factory);
-			gc.blueprint(unit.id(), UnitType.Factory, direction);
+			if(gc.canBlueprint(unit.id(), UnitType.Factory, direction))
+				gc.blueprint(unit.id(), UnitType.Factory, direction);
 		} 
 		else {
 			HashMap<Integer, Unit> factories = getAllUnitsByTypeOrderedByAge(UnitType.Factory);
