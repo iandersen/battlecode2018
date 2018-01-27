@@ -42,6 +42,8 @@ public class EarthUnitController extends DefaultUnitController {
 	private static int totalKarbonite = 1000;
 
 	public static void init() {
+		duties = new HashMap<>();
+		paths = new HashMap<>();
 		updateEnemyList();
 		updateUnitAges();
 		///BattleCodePathfinder x = new BattleCodePathfinder(map);
