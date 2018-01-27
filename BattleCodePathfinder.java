@@ -11,44 +11,46 @@ import java.util.*;
 /// Stack<MapLocation> stack = x.returnPath(unit.location().mapLocation(), enemy.location.mapLocation());
 public class BattleCodePathfinder {
   // stacks
-  Stack<Node> stack = new Stack<>();
-  Stack<MapLocation> returnable = new Stack<>();
+  static Stack<Node> stack = new Stack<>();
+  static Stack<MapLocation> returnable = new Stack<>();
   // dimensions
-  int height = 5;
-  int width = 5;
+  static int height = 5;
+  static int width = 5;
   // memory
-  HashMap<Pointxy,Integer> log = new HashMap<>();
+  static boolean done = false;
+  static HashMap<Pointxy,Integer> log = new HashMap<>();
   // start, end
-  Piece piece = new Piece(10,11);
-  Piece anton = new Piece(12,2);
-  int[][] map;
+  static Piece piece;
+  static Piece anton;
+  static int[][] map;
   // counter
-  int c = 1;
-  
+  static int c = 1;
+
   // initialize map
-  BattleCodePathfinder(int[][] map) {
-    
-    width = map.length;
-    height = map[0].length;
-    this.map = map;
-    
+  BattleCodePathfinder() {
   }
   // most important to the user. resets stacks, HashMap, and counter
-  public Stack<MapLocation> returnPath(MapLocation b, MapLocation e) {
+  public static Stack<MapLocation> returnPath(int[][] mapg, MapLocation b, MapLocation e) {
+	  map = mapg;
+	  width = map.length;
+	  height = map[0].length;
+	  done = false;
+
 	  // reinitialize stacks, log and counter
 	  stack = new Stack<>();
 	  returnable = new Stack<>();
 	  log = new HashMap<>();
 	  c = 1;
-	  
+
 	  piece = new Piece(b.getX(), b.getY());
 	  anton = new Piece(e.getX(), e.getY());
 	  Node node = new Node(piece.x, piece.y);
 	  node.isBeginning = true;
+    log.put(new Pointxy(node.x, node.y), 100);
 	  stack.push(node);
 
 	  processNodes(node);
-	  
+
 	    Node current = stack.peek();
 	    while(!current.isBeginning) {
 	      returnable.push(new MapLocation(b.getPlanet(), current.x, current.y));
@@ -57,140 +59,171 @@ public class BattleCodePathfinder {
 	    return returnable;
 	  }
   // Auxiliary method
-  public void processNodes(Node current) {
-    c++;
-    if (c > 499) {
-      return;
-    }
-    current.desvaor();
-    ArrayList<Node> options = current.findOptions();
-     System.out.println(options);
-    if(options.isEmpty()) {
-      stack.pop();
-      if(current.isBeginning) {
-        return;
-      }
-      else {
-        current.parent.good[current.id] = false;
-        processNodes(stack.peek());
-      }
-    }
-    else {
-      for (Node node : options) {
-        stack.push(node);
-      }
-      processNodes(stack.peek());
-    }
+  private static void processNodes(Node current) {
+    // find options on nodes
+          c++;
+          if (done || stack.isEmpty() || c > 300) {
+            return;
+          }
+
+          current.desvaor();
+
+          ArrayList<Node> options = current.findOptions();
+          ///////////// options are empty
+          if(options.isEmpty() || current.amRotten()) {
+            stack.pop();
+            if(current.isBeginning) {
+              return;
+            }
+            else {
+              current.parent.good[current.id] = false;
+              if (!done) {
+                processNodes(stack.peek());
+              }
+            }
+          }
+          ///////////// options are not empty
+          else {
+            for (Node node : options) {
+              stack.push(node);
+            }
+            if (!done) {
+              processNodes(stack.peek());
+            }
+          }
   }
-  
+
   // classes
-  class Node {
-    // only for isBeginning
-    boolean isBeginning = false;
-    // common
-    Node parent;
-    int id = 1000;
-    int x = 0;
-    int y = 0;
-    Node[] nodes = new Node[8];
-    boolean[] good = new boolean[]{true, true, true, true, true, true, true, true};
-    ArrayList<Node> ordering = new ArrayList<>();
-    Node (int x, int y) {
-      this.x = x;
-      this.y = y;
-    }
-    // all one fell swoop
-    public void desvaor() {
-      designateNeighbors();
-      validateNeighbors();
-      orderNeighbors();
-    }
+  static class Node {
+          // only for isBeginning
+          boolean isBeginning = false;
+          // common
+          Node parent;
+          int id = 1000;
+          int x = 0;
+          int y = 0;
+          Node[] nodes = new Node[8];
+          boolean[] good = new boolean[]{true, true, true, true, true, true, true, true};
+          ArrayList<Node> ordering = new ArrayList<>();
+          boolean neighborsDesignated = false;
+          Node (int x, int y) {
+            this.x = x;
+            this.y = y;
+          }
+          // all one fell swoop
+          public void desvaor() {
+            if(!neighborsDesignated)
+            designateNeighbors();
 
-    public double howCloseAmI(double x, double y) {
-      double number =Math.sqrt(Math.pow(anton.x-x,2) + Math.pow(anton.y-y,2));
-      if((int)x == anton.x && (int)y == anton.y) {
-        c = 1000;
-      }
-      return number;
-    }
-    // toString
-    public String toString() {
-      if(x > 19 || x < 0
-      || y > 19 || y < 0
-      || map[x][y] != 0 ) {
-        return "x: " + x + " y: " + y + " " + false;
-      }
-      return "x: " + x + " y: " + y + " " + true;
-    }
-    // what neighbors I have
-    public void designateNeighbors() {
-      nodes[0] = new Node(x, y+1); // north
-      nodes[0].id = 0;
+            validateNeighbors();
+            orderNeighbors();
+          }
 
-      nodes[1] = new Node(x, y-1); // south
-      nodes[1].id = 1;
+          public double howCloseAmI(double x, double y) {
+              double number =Math.sqrt(Math.pow(anton.x-x,2) + Math.pow(anton.y-y,2));
+              if((int)x == anton.x && (int)y == anton.y) {
+                c = 1000;
+                done = true;
+              }
+              return number;
+            }
+          // toString
+          public String toString() {
+            if(x > 19 || x < 0
+            || y > 19 || y < 0
+            || map[x][y] != 0) {
+              return "x: " + x + " y: " + y + " " + false;
+            }
+            return "x: " + x + " y: " + y + " " + true + " isBeginning: " + isBeginning;
+          }
 
-      nodes[2] = new Node(x+1, y); // east
-      nodes[2].id = 2;
+          // check if all your nodes are bad
+          public boolean amRotten() {
+            for (int i = 0; i < good.length;i++) {
+              if (good[nodes[i].id])
+                return false;
+            }
+            return true;
+          }
+          // what neighbors I have
+          public void designateNeighbors() {
+            nodes[0] = new Node(x, y+1); // north
+            nodes[0].id = 0;
+            nodes[0].parent = this;
 
-      nodes[3] = new Node(x-1, y); // west
-      nodes[3].id = 3;
+            nodes[1] = new Node(x, y-1); // south
+            nodes[1].id = 1;
+            nodes[1].parent = this;
 
-      nodes[4] = new Node(x-1, y+1); // northwest
-      nodes[4].id = 4;
+            nodes[2] = new Node(x+1, y); // east
+            nodes[2].id = 2;
+            nodes[2].parent = this;
 
-      nodes[5] = new Node(x+1, y+1); // northeast
-      nodes[5].id = 5;
+            nodes[3] = new Node(x-1, y); // west
+            nodes[3].id = 3;
+            nodes[3].parent = this;
 
-      nodes[6] = new Node(x-1, y-1); // southwest
-      nodes[6].id = 6;
+            nodes[4] = new Node(x-1, y+1); // northwest
+            nodes[4].id = 4;
+            nodes[4].parent = this;
 
-      nodes[7] = new Node(x+1, y-1); // southeast
-      nodes[7].id = 7;
-    }
-    // what neighbors are possible and not taken and parents
-    public void validateNeighbors() {
-      for (int i = 0; i < nodes.length; i++) {
-        if (
-        nodes[i].x > width - 1 || nodes[i].x < 0
-        || nodes[i].y > height - 1 || nodes[i].y < 0
-        || map[nodes[i].x][nodes[i].y] != 0
-        || log.get(new Pointxy(nodes[i].x, nodes[i].y)) != null) {
-          nodes[i] = null;
+            nodes[5] = new Node(x+1, y+1); // northeast
+            nodes[5].id = 5;
+            nodes[5].parent = this;
+
+            nodes[6] = new Node(x-1, y-1); // southwest
+            nodes[6].id = 6;
+            nodes[6].parent = this;
+
+            nodes[7] = new Node(x+1, y-1); // southeast
+            nodes[7].id = 7;
+            nodes[7].parent = this;
+            neighborsDesignated = true;
+          }
+          // what neighbors are possible and not taken and parent
+          public void validateNeighbors() {
+            for (int i = 0; i < nodes.length; i++) {
+              if (
+              nodes[i].x > width - 1 || nodes[i].x < 0
+              || nodes[i].y > height - 1 || nodes[i].y < 0
+              || map[nodes[i].x][nodes[i].y] != 0
+              || log.get(new Pointxy(nodes[i].x, nodes[i].y)) != null) {
+                good[nodes[i].id] = false;
+              }
+              else {
+                log.put(new Pointxy(nodes[i].x, nodes[i].y), id);
+              }
+            }
+          }
+          // order neighbors farthest first
+          public void orderNeighbors() {
+            HashMap<Double,Integer> order = new HashMap<>();
+            ArrayList<Double> helper = new ArrayList<>();
+            double value = 5;
+            for (int i = 0; i < nodes.length ; i++ ) {
+              if (nodes[i] != null) {
+                value = howCloseAmI(nodes[i].x,nodes[i].y);
+                value += (Math.random() * .25);
+                order.put(value,i);
+                helper.add(value);
+              }
+            }
+            // create comparator for reverse order
+            Comparator<Double> cmp = Collections.reverseOrder();
+            Collections.sort(helper, cmp);
+            for(Double number : helper) {
+              if(good[nodes[order.get(number)].id] == true)
+                  ordering.add(nodes[order.get(number)]);
+
+            }
+
+          }
+          // return this ordering
+          public ArrayList<Node> findOptions() {
+            return ordering;
+          }
         }
-        else {
-          log.put(new Pointxy(nodes[i].x, nodes[i].y), id);
-          nodes[i].parent = this;
-        }
-      }
-    }
-    // order neighbors farthest first
-    public void orderNeighbors() {
-      HashMap<Double,Integer> order = new HashMap<>();
-      ArrayList<Double> helper = new ArrayList<>();
-      double value = 5;
-      for (int i = 0; i < nodes.length ; i++ ) {
-        if (nodes[i] != null) {
-          value = howCloseAmI(nodes[i].x,nodes[i].y);
-          value += (Math.random() * 1);
-          order.put(value,i);
-          helper.add(value);
-        }
-      }
-      // create comparator for reverse order
-      Comparator<Double> cmp = Collections.reverseOrder();
-      Collections.sort(helper, cmp);
-      for(Double number : helper) {
-          ordering.add(nodes[order.get(number)]);
-      }
-
-    }
-    // return this ordering
-    public ArrayList<Node> findOptions() {
-      return ordering;
-    }
-  }
-  class Pointxy implements Comparable<Pointxy> {
+  static class Pointxy implements Comparable<Pointxy> {
 
     int x;
     int y;
@@ -231,7 +264,7 @@ public class BattleCodePathfinder {
           return result;
       }
   }
-  class Piece {
+  static class Piece {
     public int x = 0;
     public int y = 0;
     Piece(int x, int y) {
